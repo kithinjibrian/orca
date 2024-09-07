@@ -1,0 +1,56 @@
+// cSpell:disable
+
+agiza hesabu
+kutoka it agiza chapa;
+
+tabaka Mstatili {
+	urefu:namba;
+	upana:namba;
+}
+
+mbinu Mstatili {
+	eneo(hii) {
+		rejesha hii.urefu * hii.upana;
+	}
+}
+
+fanya kuu(a:namba):namba {
+	weka a:namba = 0;
+	weka jina:mstari = "kithinji brian";
+	weka h:herufi = 'c';
+	weka c:tupu = hamna;
+	weka f:nukta = 5.9;
+	weka b:au = kweli;
+	weka bb:au = sikweli;
+
+	weka ms: Mstatili = Mstatili {
+		urefu: 10,
+		upana: 5
+	};
+
+	chapa("eneo la mraba: %n\n", ms.eneo());
+
+	wakati(a < 5)
+	{
+		chapa(a);
+		a++;
+	}
+
+	kama (a == 0) {
+		chapa("a ni sufuri!");
+	}
+	basi kama (a == 5) {
+		chapa("a ni tano!");
+	}
+	basi {
+		chapa("a sio sufuri!");
+	}
+
+	kwa(weka b = 5; b < 10; b++) {
+		chapa(b);
+	}
+
+	chapa("kipeuo: %n\n", hesabu.kipeuo2(4));
+
+	rejesha a;
+}
