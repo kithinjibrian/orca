@@ -1,3 +1,3 @@
-# orca
+# Shairi
 
-An interpreter for the programming language orca.
+An interpreter for the swahili programming language, Shairi.
