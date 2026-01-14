@@ -212,7 +212,7 @@ Use `className`, just like React.
 
 ---
 
-## Server vs Interactive Components
+## Server vs Client Components
 
 By default, all Orca components are server-rendered.
 
@@ -238,12 +238,12 @@ export class Article {
 
 These components cannot use browser APIs or event handlers.
 
-### Interactive Components
+### Client Components
 
-Add the `"use interactive"` directive when interactivity is required:
+Add the `"use client"` directive when interactivity is required:
 
 ```tsx
-"use interactive";
+"use client";
 import { Component, signal } from "@kithinji/orca";
 
 @Component()
@@ -254,9 +254,7 @@ export class Counter {
     return (
       <div>
         <p>Count: {this.count.value}</p>
-        <button onClick={() => this.count.value++}>
-          Increment
-        </button>
+        <button onClick={() => this.count.value++}>Increment</button>
       </div>
     );
   }
@@ -265,7 +263,7 @@ export class Counter {
 
 Only the parts that change are re-rendered.
 
-Server and interactive components can be freely mixed.
+Server and client components can be freely mixed.
 
 ---
 
@@ -345,7 +343,7 @@ export class ProductList {
 
     return (
       <div>
-        {items.map(item => (
+        {items.map((item) => (
           <div key={item.id}>
             <h3>{item.name}</h3>
             <p>${item.price}</p>
@@ -357,12 +355,12 @@ export class ProductList {
 }
 ```
 
-### Interactive Components and Public Services
+### Client Components and Public Services
 
-Interactive components can inject `"use public"` services:
+Client components can inject `"use public"` services:
 
 ```tsx
-"use interactive";
+"use client";
 @Component()
 export class AddToCartButton {
   constructor(private cart: CartService) {}
@@ -396,7 +394,7 @@ export class Article {
 }
 ```
 
-Interactive components update only the parts affected by signals.
+Client components update only the parts affected by signals.
 
 There are no hooks or complex lifecycle phases.
 
@@ -425,7 +423,7 @@ export class UserDashboard {
 
 Prefer async server components over client fetching.
 
-### Keep Interactive Components Small
+### Keep Client Components Small
 
 Limit them to state and events. Push data and layout upward.
 
@@ -458,7 +456,7 @@ Orca components are:
 - Server-first
 - Explicit by design
 
-Use server and async components for data and layout. Use interactive components only when needed. Keep dependencies clear and services injected.
+Use server and async components for data and layout. use client components only when needed. Keep dependencies clear and services injected.
 
 Components are not isolated UI widgets. They are part of the same system as services and controllers, sharing the same mental model.
 

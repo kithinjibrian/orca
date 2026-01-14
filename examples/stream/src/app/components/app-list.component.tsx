@@ -1,4 +1,4 @@
-"use interactive";
+"use client";
 
 import { Component, toSignal } from "@kithinji/orca";
 import { AppService } from "../app.service";

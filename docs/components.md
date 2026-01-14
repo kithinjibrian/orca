@@ -4,15 +4,15 @@
 
 Components in Orca are rendered on the server by default. This server-first approach provides significant benefits: you can fetch data directly from databases, perform authentication checks, access file systems, and execute other operations that should remain on the server for security or performance reasons.
 
-However, not all components belong on the server. Interactive components that respond to user input, maintain local state, or leverage browser APIs need to run in the client environment. To designate a component for client-side rendering, you explicitly opt in using the `use interactive` directive at the top of your component file.
+However, not all components belong on the server. Client components that respond to user input, maintain local state, or leverage browser APIs need to run in the client environment. To designate a component for client-side rendering, you explicitly opt in using the `use client` directive at the top of your component file.
 
 ## Client Components
 
-Client components are marked with the `use interactive` directive and run in the browser. They have access to browser APIs, can handle user interactions, and maintain client-side state.
+Client components are marked with the `use client` directive and run in the browser. They have access to browser APIs, can handle user interactions, and maintain client-side state.
 
 ```tsx
 // btn.component.tsx (rendered on the client)
-"use interactive";
+"use client";
 import { Component } from "@kithinji/orca";
 
 @Component()
@@ -23,11 +23,11 @@ export class Btn {
 }
 ```
 
-The `onClick` handler in this example requires JavaScript execution in the browser, which is why this component must be marked as interactive and rendered on the client.
+The `onClick` handler in this example requires JavaScript execution in the browser, which is why this component must be marked as client and rendered on the client.
 
 ## Server Components
 
-Server components don't require the `use interactive` directive. They render on the server and can perform server-side operations without exposing sensitive logic or credentials to the client.
+Server components don't require the `use client` directive. They render on the server and can perform server-side operations without exposing sensitive logic or credentials to the client.
 
 ```tsx
 // h1.component.tsx (rendered on the server)
@@ -83,6 +83,7 @@ Header[server]  Action[client]              Button[client]
 ```
 
 This tree contains:
+
 - **Server components**: HomePage, Header, Footer
 - **Client components**: Card, Action, Button
 
@@ -134,6 +135,7 @@ At this point in the render, only two components have been fully executed on the
 ```
 
 This object is a mix of:
+
 - Fully rendered server components (HomePage, Footer)
 - Pointers to client components (Card, Button) with paths to their implementations
 
@@ -255,8 +257,8 @@ export class Card {
     return {
       $$typeof: "orca.client.component",
       props: {
-        path: "public/src/card.js"
-      }
+        path: "public/src/card.js",
+      },
     };
   }
 }
@@ -265,8 +267,9 @@ export class Card {
 This stub doesn't try to render Card. Instead, it returns a marker object that tells the renderer: "This is a client component, and here's where the browser can find its implementation."
 
 # Summary
+
 Orca's rendering model is built on a simple principle: render components where they make the most sense. Server components run on the server with access to databases and APIs. Client components run in the browser with access to user interactions and browser APIs.
 
 The magic happens in the build process, which creates two strategically stubbed versions of your component tree. This enables a seamless ping-pong rendering pattern where each component is rendered in its optimal environment, with automatic coordination between server and client.
 
-The result is an architecture that's both powerful and intuitive: you declare where components should run with `use interactive`, and Orca handles the rest.
+The result is an architecture that's both powerful and intuitive: you declare where components should run with `use client`, and Orca handles the rest.

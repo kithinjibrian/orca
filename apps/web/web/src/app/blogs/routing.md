@@ -349,7 +349,7 @@ This mental model has benefits:
 
 **Use stack navigation (push/pop) when:**
 
-- Building interactive flows (wizards, pickers, detail views)
+- Building client flows (wizards, pickers, detail views)
 - You need to preserve state between screens
 - You want type-safe data passing
 - The navigation is part of your feature logic
@@ -362,7 +362,7 @@ This mental model has benefits:
 - You want users to open links in new tabs
 
 **Use both together:**
-Most apps use both. Define routes for major pages users might bookmark, then use stack navigation for the interactive flows within those pages.
+Most apps use both. Define routes for major pages users might bookmark, then use stack navigation for the client flows within those pages.
 
 ---
 

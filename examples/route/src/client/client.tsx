@@ -1,4 +1,4 @@
-"use interactive";
+"use client";
 
 import {
   Module,

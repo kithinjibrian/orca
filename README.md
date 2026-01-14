@@ -72,12 +72,12 @@ export class ProductList {
 }
 ```
 
-**2. `"use interactive"` for Client Components**
+**2. `"use client"` for Client Components**
 
 Add this directive when you need client-side interactivity like click handlers, forms, or animations.
 
 ```tsx
-"use interactive";
+"use client";
 import { Component, signal } from "@kithinji/orca";
 
 @Component()
@@ -162,7 +162,7 @@ await this.cart.addItem(productId);
 
 ### Islands Architecture for Performance
 
-Server-render everything by default for fast initial loads. Add `"use interactive"` only to components that need client-side JavaScript. Your page stays lightweight while still providing rich interactivity where needed.
+Server-render everything by default for fast initial loads. Add `"use client"` only to components that need client-side JavaScript. Your page stays lightweight while still providing rich interactivity where needed.
 
 ### Clear Architecture That Scales
 
@@ -292,10 +292,10 @@ export class ProductList {
 }
 ```
 
-**Interactive Component:**
+**Client Component:**
 
 ```tsx
-"use interactive";
+"use client";
 import { Component, signal, toSignal } from "@kithinji/orca";
 
 @Component()
@@ -525,7 +525,7 @@ export class CartPage {
 
 ```tsx
 // add-to-cart-button.component.tsx
-"use interactive";
+"use client";
 import { Component, Navigate } from "@kithinji/orca";
 
 @Component()
@@ -553,7 +553,7 @@ export class AddToCartButton {
 
 1. `CartService` has `"use public"`, so Orca generates API endpoints
 2. `CartPage` (server component) calls `cart.getCart()` on the server during render
-3. `AddToCartButton` (interactive component) calls `cart.addItem()` from the browser
+3. `AddToCartButton` (client component) calls `cart.addItem()` from the browser
 4. Orca converts that call into `fetch('/cart/addItem', ...)`
 5. Types are preserved everywhere. TypeScript catches errors before runtime
 6. Navigation happens by pushing components, not URL strings
@@ -567,7 +567,7 @@ export class AddToCartButton {
 - Solo developers or small teams
 - Building features quickly without managing two repos
 - Internal tools, dashboards, or admin panels
-- Highly interactive web applications
+- Highly client web applications
 - Projects where you need a real API (for mobile apps, CLIs, webhooks)
 - Teams tired of keeping types in sync between frontend and backend
 
@@ -631,7 +631,7 @@ Full guides, API references, and examples at [**orca.dafifi.net**](https://orca.
 - Dependency Injection
 - Modules and Providers
 - Controllers and Routing
-- The `"use interactive"` directive
+- The `"use client"` directive
 - The `"use public"` directive
 - Signals and Reactivity
 - Observables and Server-Sent Events

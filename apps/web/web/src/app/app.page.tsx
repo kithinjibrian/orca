@@ -1,4 +1,4 @@
-"use interactive";
+"use client";
 
 import { Component, Signal, signal } from "@kithinji/orca";
 import { apply$, style$ } from "@kithinji/arcane";

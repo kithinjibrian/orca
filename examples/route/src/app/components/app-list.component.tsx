@@ -1,4 +1,4 @@
-"use interactive";
+"use client";
 
 import { Component, Navigate } from "@kithinji/orca";
 import { LoginPage } from "../login.page";
@@ -22,9 +22,7 @@ export class AppList {
           go to login
         </button>
 
-        <a href="/user/login/90?loc=boom">
-          click me
-        </a>
+        <a href="/user/login/90?loc=boom">click me</a>
       </div>
     );
   }

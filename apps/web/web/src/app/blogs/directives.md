@@ -8,7 +8,7 @@ Even though Orca prides itself on letting you build web apps in a single repo, t
 
 ---
 
-## 1. `"use interactive"`
+## 1. `"use client"`
 
 **TL;DR:** This marks components that need to run in the browser.
 
@@ -16,14 +16,14 @@ Even though Orca prides itself on letting you build web apps in a single repo, t
 
 By default, Orca renders all components on the server. This is fast, and works without JavaScript. But what happens when you need event handlers? What about `onClick`, `onChange`, or browser APIs like `localStorage`?
 
-That's where `"use interactive"` comes in.
+That's where `"use client"` comes in.
 
 ### How It Works
 
-Add `"use interactive"` at the top of any component file that needs browser functionality. The build tool will bundle it into the client JavaScript and hydrate it on the client side.
+Add `"use client"` at the top of any component file that needs browser functionality. The build tool will bundle it into the client JavaScript and hydrate it on the client side.
 
 ```tsx
-"use interactive";
+"use client";
 import { Component } from "@kithinji/orca";
 
 @Component()
@@ -38,7 +38,7 @@ export class Button {
 
 Here's what makes Orca different: **there are no restrictions on which components can call which.**
 
-Server components can render interactive components. Interactive components can render server components. It doesn't matter. `"use interactive"` just creates **islands of interactivity** in your render tree.
+Server components can render client components. Client components can render server components. It doesn't matter. `"use client"` just creates **islands of interactivity** in your render tree.
 
 ---
 
@@ -81,11 +81,11 @@ export class AppService {
 }
 ```
 
-Now use it in an interactive component:
+Now use it in an client component:
 
 ```tsx
 // button.component.tsx
-"use interactive";
+"use client";
 import { Component } from "@kithinji/orca";
 import { AppService } from "./app.service";
 
@@ -150,7 +150,7 @@ TypeScript enforces type correctness on what are essentially your API routes. If
 
 Here's how to think about these two directives:
 
-- **`"use interactive"`**: "This component needs to run in the browser."
+- **`"use client"`**: "This component needs to run in the browser."
 - **`"use public"`**: "This service should become an API endpoint."
 
 ## The Bottom Line

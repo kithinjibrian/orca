@@ -1,4 +1,4 @@
-"use interactive";
+"use client";
 
 import { BehaviorSubject, Component, signal } from "@kithinji/orca";
 

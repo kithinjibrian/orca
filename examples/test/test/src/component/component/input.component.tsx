@@ -1,12 +1,10 @@
-"use interactive";
+"use client";
 
 import { Component } from "@kithinji/orca";
 
 @Component()
-export class Input {    
-    build() {
-        return (
-            <input />
-        );
-    }
+export class Input {
+  build() {
+    return <input />;
+  }
 }

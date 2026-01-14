@@ -49,7 +49,7 @@ They hold a value. When that value changes, anything depending on it updates aut
 ### Basic Example
 
 ```ts
-"use interactive";
+"use client";
 import { Component, signal } from "@kithinji/orca";
 
 @Component()
@@ -100,7 +100,7 @@ They work both within a single context (client-side events) and across boundarie
 ### Client-Side Example
 
 ```ts
-"use interactive";
+"use client";
 import { Component, signal, observable } from "@kithinji/orca";
 
 @Component()
@@ -164,7 +164,7 @@ export class TickService {
 ```
 
 ```ts
-"use interactive";
+"use client";
 
 import { Component, toSignal } from "@kithinji/orca";
 
@@ -231,7 +231,7 @@ export class AppController {
 ### Client-Side Actor
 
 ```ts
-"use interactive";
+"use client";
 
 import { Component, signal, Message, Actor } from "@kithinji/orca";
 

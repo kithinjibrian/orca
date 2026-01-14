@@ -138,7 +138,7 @@ export class TickTockService {
 ```
 
 ```tsx
-"use interactive";
+"use client";
 
 import { Component, toSignal } from "@kithinji/orca";
 
