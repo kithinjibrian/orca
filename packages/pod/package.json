@@ -1,0 +1,69 @@
+{
+  "name": "@kithinji/pod",
+  "version": "1.0.30",
+  "description": "A CLI tool for managing and deploying pods",
+  "type": "module",
+  "bin": {
+    "pod": "./dist/main.js"
+  },
+  "exports": {
+    ".": {
+      "node": {
+        "import": "./dist/main.js"
+      },
+      "types": "./dist/types/main.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kithinjibrian/pod.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kithinjibrian/pod/issues"
+  },
+  "homepage": "https://github.com/kithinjibrian/pod#readme",
+  "keywords": [
+    "cli",
+    "pod",
+    "deployment",
+    "devops",
+    "node",
+    "typescript"
+  ],
+  "author": {
+    "name": "Kithinji Brian",
+    "url": "https://github.com/kithinjibrian"
+  },
+  "license": "MIT",
+  "scripts": {
+    "build": "node build.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@babel/core": "^7.28.5",
+    "@babel/plugin-syntax-jsx": "^7.27.1",
+    "@swc/core": "^1.15.6",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.2",
+    "esbuild": "^0.27.2",
+    "fs-extra": "^11.3.3",
+    "js-yaml": "^4.1.1",
+    "node-ssh": "^13.2.1",
+    "prompts": "^2.4.2",
+    "typescript": "^5.9.3",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/babel__core": "^7.20.5",
+    "@types/fs-extra": "^11.0.4",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.0.3",
+    "@types/prompts": "^2.4.9",
+    "@types/ws": "^8.18.1"
+  }
+}

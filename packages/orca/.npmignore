@@ -1,0 +1,36 @@
+# Source files
+src/
+*.ts
+!*.d.ts
+
+docs/
+
+# Build configuration
+build.js
+tsconfig.json
+
+# Examples and tests
+examples/
+test/
+tests/
+*.test.ts
+*.spec.ts
+
+# Documentation
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Misc
+node_modules/
+.DS_Store
+*.log

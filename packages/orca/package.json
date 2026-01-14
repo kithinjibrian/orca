@@ -1,0 +1,73 @@
+{
+  "name": "@kithinji/orca",
+  "version": "1.0.19",
+  "description": "A fullstack web framework for Node.js and browser environments",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "browser": {
+        "import": "./dist/browser/index.mjs",
+        "default": "./dist/browser/index.iife.js"
+      },
+      "node": {
+        "import": "./dist/node/index.mjs",
+        "require": "./dist/node/index.cjs"
+      },
+      "types": "./dist/types/index.d.ts"
+    },
+    "./jsx-runtime": {
+      "types": "./dist/types/shared/jsx/index.d.ts",
+      "import": "./dist/node/index.mjs"
+    },
+    "./jsx-dev-runtime": {
+      "types": "./dist/types/shared/jsx/index.d.ts",
+      "import": "./dist/node/index.mjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kithinjibrian/orca.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kithinjibrian/orca/issues"
+  },
+  "homepage": "https://github.com/kithinjibrian/orca#readme",
+  "keywords": [
+    "web",
+    "framework",
+    "node",
+    "browser",
+    "typescript",
+    "jsx"
+  ],
+  "author": {
+    "name": "Kithinji",
+    "url": "https://github.com/kithinjibrian"
+  },
+  "license": "MIT",
+  "scripts": {
+    "build": "node build.js",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "linkedom": "^0.18.12",
+    "reflect-metadata": "^0.2.2",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/jsdom": "^27.0.0",
+    "@types/node": "^25.0.2",
+    "esbuild": "^0.19.0",
+    "esbuild-plugin-tsc": "^0.5.0",
+    "typescript": "^5.0.0"
+  }
+}

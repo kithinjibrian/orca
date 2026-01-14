@@ -1,0 +1,33 @@
+{
+  "name": "@kithinji/arcane",
+  "version": "1.0.8",
+  "description": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "node build.js"
+  },
+  "exports": {
+    ".": {
+      "browser": {
+        "import": "./dist/browser/index.mjs"
+      },
+      "node": {
+        "import": "./dist/node/index.mjs",
+        "require": "./dist/node/index.cjs"
+      },
+      "types": "./dist/types/index.d.ts"
+    }
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "esbuild": "^0.27.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@kithinji/pod": "^1.0.1"
+  }
+}
