@@ -1,0 +1,20 @@
+{
+  "name": "route",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "pod dev",
+    "build": "pod build",
+    "start": "pod start"
+  },
+  "dependencies": {
+    "reflect-metadata": "latest",
+    "zod": "^4.2.1",
+    "@kithinji/arcane": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.27",
+    "typescript": "~5.9.3"
+  }
+}

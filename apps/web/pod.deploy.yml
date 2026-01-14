@@ -1,0 +1,114 @@
+name: web
+version: 1.0.0
+
+deploy_path: &deploy_path "/home/ubuntu/app"
+backup_path: &backup_path "/home/ubuntu/backups"
+user: &user "ubuntu"
+
+shared_operations:
+  install_docker: &install_docker
+    type: ensure
+    ensure:
+      docker:
+        version: "28.5.2"
+        addUserToGroup: true
+
+  stop_containers: &stop_containers
+    type: action
+    action:
+      command: docker compose down --remove-orphans 2>/dev/null || true
+
+  pull_images: &pull_images
+    type: action
+    action:
+      command: docker compose pull --quiet
+
+  build_and_start: &build_and_start
+    type: action
+    action:
+      command: docker compose up -d --build --remove-orphans --wait
+
+  cleanup_docker: &cleanup_docker
+    type: action
+    action:
+      command: docker system prune -f --volumes --filter "until=168h"
+
+targets:
+  localhost:
+    type: local
+    operations:
+      #- name: "Environment Setup"
+      #  <<: *install_docker
+      - name: "Refresh Stack"
+        <<: *build_and_start
+
+  ec2:
+    type: ssh
+    host: ec2-51-21-255-225.eu-north-1.compute.amazonaws.com
+    user: *user
+    keyPath: ~/Downloads/secrets/scorpio.pem
+    port: 22
+    deployPath: *deploy_path
+
+    operations:
+      - name: "Setup swap space"
+        type: ensure
+        ensure:
+          swap:
+            size: 4G
+
+      - name: "Install Docker"
+        <<: *install_docker
+
+      - name: "Create application directories"
+        type: ensure
+        ensure:
+          directory:
+            path: *deploy_path
+            owner: *user
+
+      - name: "Create backup directory"
+        type: ensure
+        ensure:
+          directory:
+            path: *backup_path
+            owner: *user
+
+      - name: "Sync Source Files"
+        type: action
+        action:
+          rsync:
+            source: ./
+            destination: *deploy_path
+            delete: true
+            exclude:
+              - .git/
+              - node_modules/
+              - .env.local
+              - "*.log"
+
+      - name: "Navigate to Deploy Path"
+        type: action
+        action:
+          command: cd ${deploy_path}
+
+      - name: "Create Pre-deployment Backup"
+        type: action
+        action:
+          command: tar -czf ${backup_path}/backup-$(date +%Y%m%d-%H%M%S).tar.gz --exclude="./letsencrypt" .
+
+      - name: "Pull Latest Images"
+        <<: *pull_images
+
+      - name: "Stop Existing Stack"
+        <<: *stop_containers
+
+      - name: "Build and Launch"
+        <<: *build_and_start
+
+      - name: "Maintenance: Cleanup"
+        type: action
+        action:
+          command: |
+            find *backup_path -name "backup-*.tar.gz" -mtime +7 -delete
+            docker image prune -af --filter "until=24h"
