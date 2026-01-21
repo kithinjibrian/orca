@@ -28,6 +28,31 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/icons:
+    dependencies:
+      '@kithinji/arcane':
+        specifier: workspace:*
+        version: link:../arcane
+      '@kithinji/orca':
+        specifier: workspace:*
+        version: link:../orca
+      reflect-metadata:
+        specifier: latest
+        version: 0.2.2
+    devDependencies:
+      '@kithinji/pod':
+        specifier: workspace:*
+        version: link:../pod
+      '@types/node':
+        specifier: ^20.19.27
+        version: 20.19.30
+      esbuild:
+        specifier: ^0.27.2
+        version: 0.27.2
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+
   packages/orca:
     dependencies:
       express:
@@ -76,6 +101,9 @@ importers:
       '@babel/plugin-syntax-jsx':
         specifier: ^7.27.1
         version: 7.28.6(@babel/core@7.28.6)
+      '@babel/types':
+        specifier: ^7.28.6
+        version: 7.28.6
       '@swc/core':
         specifier: ^1.15.6
         version: 1.15.10
@@ -585,6 +613,9 @@ packages:
 
   '@types/node@12.20.55':
     resolution: {integrity: sha512-J8xLz7q2OFulZ2cyGTLE1TbbZcjpno7FaN6zdJNrgAdrJ+DZzh/uFR6YrTb4C+nXakvud8Q4+rbhoIWlYQbUFQ==}
+
+  '@types/node@20.19.30':
+    resolution: {integrity: sha512-WJtwWJu7UdlvzEAUm484QNg5eAoq5QR08KDNx7g45Usrs2NtOPiX8ugDqmKdXkyL03rBqU5dYNYVQetEpBHq2g==}
 
   '@types/node@25.0.9':
     resolution: {integrity: sha512-/rpCXHlCWeqClNBwUhDcusJxXYDjZTyE8v5oTO7WbL8eij2nKhUeU89/6xgjU7N4/Vh3He0BtyhJdQbDyhiXAw==}
@@ -1383,6 +1414,9 @@ packages:
   uhyphen@0.2.0:
     resolution: {integrity: sha512-qz3o9CHXmJJPGBdqzab7qAYuW8kQGKNEuoHFYrBwV6hWIMcpAmxDLXojcHfFr9US1Pe6zUswEIJIbLI610fuqA==}
 
+  undici-types@6.21.0:
+    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
+
   undici-types@7.16.0:
     resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
 
@@ -1959,6 +1993,10 @@ snapshots:
       '@types/node': 25.0.9
 
   '@types/node@12.20.55': {}
+
+  '@types/node@20.19.30':
+    dependencies:
+      undici-types: 6.21.0
 
   '@types/node@25.0.9':
     dependencies:
@@ -2810,6 +2848,8 @@ snapshots:
   typescript@5.9.3: {}
 
   uhyphen@0.2.0: {}
+
+  undici-types@6.21.0: {}
 
   undici-types@7.16.0: {}
 

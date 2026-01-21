@@ -121,9 +121,9 @@ export class AppService {
     },
   ];
 
-  findMenuItemById(
+  private findMenuItemById(
     items: MenuItemData[],
-    id: number
+    id: number,
   ): MenuItemData | undefined {
     for (const item of items) {
       if (item.id === id) {

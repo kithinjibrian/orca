@@ -9,15 +9,15 @@
     "start": "pod start"
   },
   "dependencies": {
-    "@kithinji/arcane": "^1.0.8",
-    "@kithinji/orca": "^1.0.14",
+    "@kithinji/arcane": "latest",
+    "@kithinji/orca": "latest",
     "highlight.js": "^11.11.1",
     "marked": "^17.0.1",
     "reflect-metadata": "latest",
     "zod": "^4.2.1"
   },
   "devDependencies": {
-    "@kithinji/pod": "^1.0.17",
+    "@kithinji/pod": "latest",
     "@types/node": "^20.19.27",
     "typescript": "~5.9.3"
   }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { startDevServer } from "./dev";
+import { startBuild, startDevServer } from "./dev";
 
 import * as store from "./store";
 export { store };
@@ -18,6 +18,7 @@ export * from "./macros/expand_macros";
 import * as plugins from "./plugins";
 export { plugins };
 export * from "./plugins/css";
+export * from "./plugins/my";
 
 import { addComponent, addNew, addTs } from "./add";
 import { addFeature } from "./add/module";
@@ -28,10 +29,11 @@ import { dockerize } from "./docker";
 import { deploy } from "./deploy";
 import chalk from "chalk";
 import { compileFiles } from "./compile";
+import { fileURLToPath } from "url";
 
 const program = new Command();
 
-program.name("pod").description("Pod cli tool").version("1.0.38");
+program.name("pod").description("Pod cli tool").version("1.0.39");
 
 program
   .command("new <name> [type]")
@@ -90,6 +92,13 @@ program
   });
 
 program
+  .command("build")
+  .description("Start Pod build")
+  .action(async (opts) => {
+    await startBuild();
+  });
+
+program
   .command("compile <files...>")
   .description("Compile ts files with pod")
   .action(async (files: string[]) => {
@@ -139,4 +148,10 @@ program
     }
   });
 
-program.parse(process.argv);
+const isMainModule = process.argv[1] === fileURLToPath(import.meta.url);
+
+if (isMainModule) {
+  program.parse(process.argv);
+}
+
+export { program };
