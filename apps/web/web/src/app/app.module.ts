@@ -5,6 +5,7 @@ import { AppPage } from "./app.page";
 import { AppHeader, AppRightbar, AppSidebar, MainArea } from "./components";
 import { MenuItem } from "./components/menu-item";
 import { ContentService } from "./content.service";
+import { IconsModule } from "@kithinji/icons/src/app/app.module";
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { ContentService } from "./content.service";
     }),
     RouterModule.forRoot(),
     ComponentModule,
+    IconsModule,
   ],
   providers: [AppService, ContentService],
   exports: [AppService, AppPage],
