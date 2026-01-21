@@ -121,6 +121,7 @@ build
 *.log
 .env
 .DS_Store
+public
 `;
 }
 

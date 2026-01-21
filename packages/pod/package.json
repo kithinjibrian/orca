@@ -1,17 +1,17 @@
 {
   "name": "@kithinji/pod",
-  "version": "1.0.30",
+  "version": "1.0.38",
   "description": "A CLI tool for managing and deploying pods",
   "type": "module",
   "bin": {
-    "pod": "./dist/main.js"
+    "pod": "./dist/index.js"
   },
   "exports": {
     ".": {
       "node": {
-        "import": "./dist/main.js"
+        "import": "./dist/index.js"
       },
-      "types": "./dist/types/main.d.ts"
+      "types": "./dist/types/index.d.ts"
     }
   },
   "files": [

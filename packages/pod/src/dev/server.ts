@@ -43,7 +43,7 @@ export async function navigate(event, url) {
 };
 
 function createVirtualModulePlugin(
-  virtualFiles: Record<string, VirtualFile>
+  virtualFiles: Record<string, VirtualFile>,
 ): esbuild.Plugin {
   return {
     name: "virtual-module",
@@ -101,7 +101,7 @@ class HotReloadManager {
 
   reload(): void {
     const activeClients = Array.from(this.clients).filter(
-      (client) => client.readyState === WebSocket.OPEN
+      (client) => client.readyState === WebSocket.OPEN,
     );
 
     if (activeClients.length === 0) {
@@ -128,7 +128,7 @@ class HotReloadManager {
 
 async function copyAndProcessHtml(
   hotReloadPort: number,
-  preprocessorOptions?: HtmlPreprocessorOptions
+  preprocessorOptions?: HtmlPreprocessorOptions,
 ): Promise<void> {
   try {
     await fs.mkdir("public", { recursive: true });
@@ -141,7 +141,7 @@ async function copyAndProcessHtml(
 
     await preprocessor.processFile(
       "./src/client/index.html",
-      "./public/index.html"
+      "./public/index.html",
     );
   } catch (error) {
     console.error("Failed to copy and process index.html:", error);
@@ -159,7 +159,7 @@ async function cleanDirectories(): Promise<void> {
 function createRestartServerPlugin(
   serverProcess: { current: ChildProcess | null },
   onServerBuildComplete: () => void,
-  hotReloadManager: HotReloadManager
+  hotReloadManager: HotReloadManager,
 ): esbuild.Plugin {
   return {
     name: "restart-server",
@@ -167,7 +167,7 @@ function createRestartServerPlugin(
       build.onEnd((result) => {
         if (result.errors.length > 0) {
           console.error(
-            `Server build failed with ${result.errors.length} error(s)`
+            `Server build failed with ${result.errors.length} error(s)`,
           );
           return;
         }
@@ -289,7 +289,7 @@ export async function startDevServer(): Promise<void> {
               build.onEnd((result: any) => {
                 if (result.errors.length > 0) {
                   console.error(
-                    `Client build failed with ${result.errors.length} error(s)`
+                    `Client build failed with ${result.errors.length} error(s)`,
                   );
                 } else {
                   console.log("Client build completed");
@@ -328,6 +328,7 @@ export async function startDevServer(): Promise<void> {
     minify: config.build?.minify ?? false,
     plugins: [
       ...(config.plugins?.map((cb) => cb(store)) || []),
+      ...(config.server_plugins?.map((cb) => cb(store)) || []),
       useMyPlugin({
         isServerBuild: true,
         onClientFound: async (filePath) => {
@@ -343,7 +344,7 @@ export async function startDevServer(): Promise<void> {
       createRestartServerPlugin(
         serverProcessRef,
         onServerBuildComplete,
-        hotReloadManager
+        hotReloadManager,
       ),
     ],
     write: true,

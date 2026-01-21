@@ -43,7 +43,7 @@ function simpleHash(str: string): string {
 function hashProperty(
   prop: string,
   value: string | number,
-  cssRules: Map<string, string>
+  cssRules: Map<string, string>,
 ): string {
   const input = `${prop}:${value}`;
   let hash = simpleHash(input);
@@ -80,7 +80,7 @@ function hashProperty(
 
     if (attempt > 100) {
       throw new Error(
-        `Hash collision limit exceeded for property ${prop}:${value}`
+        `Hash collision limit exceeded for property ${prop}:${value}`,
       );
     }
   }
@@ -123,13 +123,13 @@ function isPseudoOrMediaKey(key: string): boolean {
 function validateStyleValue(value: any, path: string): void {
   if (value === null) {
     throw new Error(
-      `Invalid style value at ${path}: null is not allowed. Use undefined or omit the property.`
+      `Invalid style value at ${path}: null is not allowed. Use undefined or omit the property.`,
     );
   }
 
   if (typeof value === "function") {
     throw new Error(
-      `Invalid style value at ${path}: functions must be resolved at build time.`
+      `Invalid style value at ${path}: functions must be resolved at build time.`,
     );
   }
 }
@@ -138,7 +138,7 @@ function processStyleValue(
   prop: string,
   value: any,
   cssRules: Map<string, string>,
-  path: string = prop
+  path: string = prop,
 ): string {
   validateStyleValue(value, path);
 
@@ -163,7 +163,7 @@ function processStyleValue(
       if (nestedKey === "default") {
         const normalizedValue = normalizeValue(
           prop,
-          nestedValue as string | number
+          nestedValue as string | number,
         );
         const className = hashProperty(prop, normalizedValue, cssRules);
 
@@ -176,12 +176,12 @@ function processStyleValue(
       } else if (isPseudoOrMediaKey(nestedKey)) {
         const normalizedValue = normalizeValue(
           prop,
-          nestedValue as string | number
+          nestedValue as string | number,
         );
         const className = hashProperty(
           `${prop}${nestedKey}`,
           normalizedValue,
-          cssRules
+          cssRules,
         );
 
         if (!cssRules.has(className)) {
@@ -205,7 +205,7 @@ function processStyleValue(
         classes.push(className);
       } else {
         throw new Error(
-          `Invalid nested key "${nestedKey}" at ${path}. Expected "default", a pseudo-class (":hover"), media query ("@media"), or nesting selector ("&").`
+          `Invalid nested key "${nestedKey}" at ${path}. Expected "default", a pseudo-class (":hover"), media query ("@media"), or nesting selector ("&").`,
         );
       }
     }
@@ -226,14 +226,14 @@ function processStyleValue(
 
 function processStyleObject(
   styleObj: Record<string, any>,
-  cssRules: Map<string, string>
+  cssRules: Map<string, string>,
 ): Record<string, string> {
   const result: Record<string, string> = {};
 
   for (const [namespace, styles] of Object.entries(styleObj)) {
     if (typeof styles !== "object" || Array.isArray(styles)) {
       throw new Error(
-        `Invalid style namespace "${namespace}": expected an object, got ${typeof styles}`
+        `Invalid style namespace "${namespace}": expected an object, got ${typeof styles}`,
       );
     }
 
@@ -246,7 +246,7 @@ function processStyleObject(
         prop,
         value,
         cssRules,
-        `${namespace}.${prop}`
+        `${namespace}.${prop}`,
       );
 
       if (className) {
@@ -262,11 +262,11 @@ function processStyleObject(
 
 export function style$<const T extends Record<string, any>>(
   style: T,
-  context?: MacroContext
+  context?: MacroContext,
 ): MapNamespaces<T> {
   if (!context) {
     throw new Error(
-      "style$ macro requires MacroContext. Ensure you're using this as a build-time macro."
+      "style$ macro requires MacroContext. Ensure you're using this as a build-time macro.",
     );
   }
 
@@ -276,13 +276,13 @@ export function style$<const T extends Record<string, any>>(
   if (value == undefined) {
     throw new Error(
       `Could not resolve style object at build time. ` +
-        `Ensure all values are statically analyzable (no runtime expressions, dynamic imports should be inlined).`
+        `Ensure all values are statically analyzable (no runtime expressions, dynamic imports should be inlined).`,
     );
   }
 
   if (typeof value !== "object" || Array.isArray(value)) {
     throw new Error(
-      `style$ expects an object with style namespaces, got ${typeof value}`
+      `style$ expects an object with style namespaces, got ${typeof value}`,
     );
   }
 
@@ -294,8 +294,8 @@ export function style$<const T extends Record<string, any>>(
   const properties = Object.entries(classNameMap).map(([key, className]) =>
     context.factory.createPropertyAssignment(
       context.factory.createStringLiteral(key),
-      context.factory.createStringLiteral(className)
-    )
+      context.factory.createStringLiteral(className),
+    ),
   );
 
   return context.factory.createObjectLiteralExpression(properties, true) as any;
@@ -314,7 +314,7 @@ export function apply$(...c: any[]) {
 
   if (!context || !context.factory) {
     throw new Error(
-      "apply$ macro requires MacroContext as the last argument. Ensure you're using this as a build-time macro."
+      "apply$ macro requires MacroContext as the last argument. Ensure you're using this as a build-time macro.",
     );
   }
 
@@ -325,10 +325,10 @@ export function apply$(...c: any[]) {
       [
         context.factory.createPropertyAssignment(
           context.factory.createIdentifier("className"),
-          context.factory.createStringLiteral("")
+          context.factory.createStringLiteral(""),
         ),
       ],
-      false
+      false,
     );
   }
 
@@ -412,7 +412,7 @@ export function apply$(...c: any[]) {
               f.createStringLiteral(""),
               f.createStringLiteral(rs),
             ]),
-            f.createPrefixUnaryExpression(ts.SyntaxKind.PlusToken, expr.left)
+            f.createPrefixUnaryExpression(ts.SyntaxKind.PlusToken, expr.left),
           ),
         };
       }
@@ -440,8 +440,8 @@ export function apply$(...c: any[]) {
             ]),
             f.createPrefixUnaryExpression(
               ts.SyntaxKind.PlusToken,
-              expr.condition
-            )
+              expr.condition,
+            ),
           ),
         };
       }
@@ -485,7 +485,7 @@ export function apply$(...c: any[]) {
       frags
         .map((f) => f.value)
         .join(" ")
-        .trim()
+        .trim(),
     );
   } else {
     // Mixed static/dynamic - generate array.join(" ")
@@ -505,19 +505,19 @@ export function apply$(...c: any[]) {
               undefined,
               frag.expr,
               undefined,
-              f.createStringLiteral("")
+              f.createStringLiteral(""),
             );
-          })
+          }),
         ),
-        "join"
+        "join",
       ),
       undefined,
-      [f.createStringLiteral(" ")]
+      [f.createStringLiteral(" ")],
     );
   }
 
   return f.createObjectLiteralExpression(
     [f.createPropertyAssignment(f.createIdentifier("className"), classExpr)],
-    false
+    false,
   );
 }

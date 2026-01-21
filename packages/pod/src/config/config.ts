@@ -13,6 +13,8 @@ export interface PodConfig {
     outDir?: string;
     sourcemap?: boolean;
     minify?: boolean;
+    types?: boolean;
+    decorators?: boolean;
   };
   plugins?: Array<PodPlugin>;
   client_plugins?: Array<PodPlugin>;
@@ -28,7 +30,7 @@ const CONFIG_FILES = [
 ];
 
 export async function loadConfig(
-  root: string = process.cwd()
+  root: string = process.cwd(),
 ): Promise<PodConfig> {
   for (const configFile of CONFIG_FILES) {
     const configPath = path.resolve(root, configFile);
@@ -103,7 +105,7 @@ async function loadTsConfig(configPath: string): Promise<PodConfig> {
   } catch (error) {
     console.error(
       `❌ Failed to load TypeScript config from ${configPath}:`,
-      error
+      error,
     );
     throw error;
   }
@@ -116,6 +118,8 @@ export function getDefaultConfig(): PodConfig {
       outDir: "dist",
       sourcemap: true,
       minify: false,
+      types: false,
+      decorators: false,
     },
     plugins: [],
     client_plugins: [],
@@ -125,7 +129,7 @@ export function getDefaultConfig(): PodConfig {
 
 export function mergeConfig(
   defaults: PodConfig,
-  userConfig: PodConfig
+  userConfig: PodConfig,
 ): PodConfig {
   return {
     name: userConfig.name,

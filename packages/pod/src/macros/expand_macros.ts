@@ -52,7 +52,7 @@ class MacroDependencyGraph {
     key: string,
     variableName: string,
     node: ts.CallExpression,
-    sourceFile: ts.SourceFile
+    sourceFile: ts.SourceFile,
   ) {
     if (!this.nodes.has(key)) {
       this.nodes.set(key, {
@@ -135,7 +135,7 @@ class MacroDependencyGraph {
 
   getNodesForFile(filePath: string): MacroNode[] {
     return Array.from(this.nodes.values()).filter(
-      (node) => node.filePath === filePath
+      (node) => node.filePath === filePath,
     );
   }
 }
@@ -156,13 +156,13 @@ export function resetGlobalMacroGraph() {
 function resolveImportSpecifier(
   importPath: string,
   fromFile: string,
-  compilerOptions: ts.CompilerOptions
+  compilerOptions: ts.CompilerOptions,
 ): string | undefined {
   const resolved = ts.resolveModuleName(
     importPath,
     fromFile,
     compilerOptions,
-    ts.sys
+    ts.sys,
   );
 
   if (resolved.resolvedModule?.resolvedFileName) {
@@ -180,7 +180,7 @@ function resolveImportSpecifier(
 function resolveImportFullPath(
   symbolName: string,
   sourceFile: ts.SourceFile,
-  compilerOptions: ts.CompilerOptions
+  compilerOptions: ts.CompilerOptions,
 ): { importPath: string; resolvedPath: string | undefined } | undefined {
   let importPath: string | undefined;
 
@@ -214,7 +214,7 @@ function resolveImportFullPath(
   const resolvedPath = resolveImportSpecifier(
     importPath,
     sourceFile.fileName,
-    compilerOptions
+    compilerOptions,
   );
 
   return {
@@ -233,7 +233,7 @@ function isNpmPackage(importPath: string): boolean {
 
 function findVariableDeclarationInFile(
   variableName: string,
-  sourceFile: ts.SourceFile
+  sourceFile: ts.SourceFile,
 ): ts.VariableDeclaration | undefined {
   let found: ts.VariableDeclaration | undefined;
 
@@ -280,12 +280,12 @@ export function extractValueFromNode(node: ts.Node): any | undefined {
         const key = ts.isIdentifier(prop.name)
           ? prop.name.text
           : ts.isStringLiteral(prop.name)
-          ? prop.name.text
-          : ts.isNumericLiteral(prop.name)
-          ? prop.name.text
-          : ts.isComputedPropertyName(prop.name)
-          ? extractValueFromNode(prop.name.expression)
-          : undefined;
+            ? prop.name.text
+            : ts.isNumericLiteral(prop.name)
+              ? prop.name.text
+              : ts.isComputedPropertyName(prop.name)
+                ? extractValueFromNode(prop.name.expression)
+                : undefined;
 
         if (key !== undefined) {
           obj[key] = extractValueFromNode(prop.initializer);
@@ -400,7 +400,7 @@ function createNodeResolver(
   graph: MacroDependencyGraph,
   currentFileKey: string,
   sourceFile: ts.SourceFile,
-  compilerOptions: ts.CompilerOptions
+  compilerOptions: ts.CompilerOptions,
 ) {
   const trackedDependencies: string[] = [];
 
@@ -416,7 +416,7 @@ function createNodeResolver(
 
       if (!isConst) {
         throw new Error(
-          `Macro argument '${name}' must be a const variable. let/var are not allowed.`
+          `Macro argument '${name}' must be a const variable. let/var are not allowed.`,
         );
       }
 
@@ -434,7 +434,7 @@ function createNodeResolver(
           }
 
           throw new Error(
-            `Macro dependency '${name}' has not been computed yet. This should not happen.`
+            `Macro dependency '${name}' has not been computed yet. This should not happen.`,
           );
         }
       }
@@ -449,20 +449,20 @@ function createNodeResolver(
       if (isNpmPackage(resolved.importPath)) {
         throw new Error(
           `Cannot resolve identifier '${name}' from npm package '${resolved.importPath}'. ` +
-            `Macro arguments from npm packages must be constants that can be evaluated at compile time.`
+            `Macro arguments from npm packages must be constants that can be evaluated at compile time.`,
         );
       }
 
       if (!resolved.resolvedPath) {
         throw new Error(
-          `Could not resolve import path: ${resolved.importPath}`
+          `Could not resolve import path: ${resolved.importPath}`,
         );
       }
 
       const importedSource = ts.sys.readFile(resolved.resolvedPath);
       if (!importedSource) {
         throw new Error(
-          `Could not read imported file: ${resolved.resolvedPath}`
+          `Could not read imported file: ${resolved.resolvedPath}`,
         );
       }
 
@@ -470,12 +470,12 @@ function createNodeResolver(
         resolved.resolvedPath,
         importedSource,
         ts.ScriptTarget.Latest,
-        true
+        true,
       );
 
       const importedDecl = findVariableDeclarationInFile(
         name,
-        importedSourceFile
+        importedSourceFile,
       );
 
       if (importedDecl && importedDecl.initializer) {
@@ -492,7 +492,7 @@ function createNodeResolver(
             }
 
             throw new Error(
-              `Cross-file macro dependency '${name}' from '${resolved.resolvedPath}' needs to be computed first.`
+              `Cross-file macro dependency '${name}' from '${resolved.resolvedPath}' needs to be computed first.`,
             );
           }
         }
@@ -502,7 +502,7 @@ function createNodeResolver(
     }
 
     throw new Error(
-      `Could not resolve identifier '${name}'. Make sure it's a const variable or imported constant.`
+      `Could not resolve identifier '${name}'. Make sure it's a const variable or imported constant.`,
     );
   }
 
@@ -524,7 +524,7 @@ function createNodeResolver(
 export async function expandMacros(
   source: string,
   filePath: string,
-  projectRoot: string = process.cwd()
+  projectRoot: string = process.cwd(),
 ): Promise<string> {
   if (!source.includes("$(") && !source.includes("$`")) {
     return source;
@@ -541,7 +541,7 @@ export async function expandMacros(
     source,
     ts.ScriptTarget.Latest,
     true,
-    filePath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+    filePath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
   );
 
   const graph = getGlobalMacroGraph(projectRoot);
@@ -584,7 +584,7 @@ export async function expandMacros(
       graph,
       macroNode.key,
       macroNode.sourceFile,
-      compilerOptions
+      compilerOptions,
     );
 
     try {
@@ -625,7 +625,7 @@ export async function expandMacros(
     const resolved = resolveImportFullPath(
       name,
       macroNode.sourceFile,
-      compilerOptions
+      compilerOptions,
     );
 
     if (!resolved) {
@@ -642,7 +642,7 @@ export async function expandMacros(
       graph,
       key,
       macroNode.sourceFile,
-      compilerOptions
+      compilerOptions,
     );
 
     const macroContext: MacroContext = {
@@ -701,7 +701,7 @@ export async function expandMacros(
               node.name,
               node.exclamationToken,
               node.type,
-              result as any
+              result as any,
             );
           }
         }
@@ -714,7 +714,7 @@ export async function expandMacros(
           const resolved = resolveImportFullPath(
             name,
             sourceFile,
-            compilerOptions
+            compilerOptions,
           );
 
           if (resolved) {
@@ -728,7 +728,7 @@ export async function expandMacros(
                 graph,
                 tempKey,
                 sourceFile,
-                compilerOptions
+                compilerOptions,
               );
 
               const macroContext: MacroContext = {
@@ -761,14 +761,14 @@ export async function expandMacros(
                   !("kind" in result)
                 ) {
                   throw new Error(
-                    `Macro '${name}' must return a TypeScript AST node`
+                    `Macro '${name}' must return a TypeScript AST node`,
                   );
                 }
 
                 return result;
               } catch (e: any) {
                 console.log(
-                  `Macro '${name}' execution failed: ${e?.message ?? e}`
+                  `Macro '${name}' execution failed: ${e?.message ?? e}`,
                 );
                 return node;
               }

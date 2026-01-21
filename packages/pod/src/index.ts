@@ -27,10 +27,11 @@ import { exec, execSync } from "child_process";
 import { dockerize } from "./docker";
 import { deploy } from "./deploy";
 import chalk from "chalk";
+import { compileFiles } from "./compile";
 
 const program = new Command();
 
-program.name("pod").description("Pod cli tool").version("1.0.30");
+program.name("pod").description("Pod cli tool").version("1.0.38");
 
 program
   .command("new <name> [type]")
@@ -53,7 +54,7 @@ program
       execSync("npm run dev", { stdio: "inherit", cwd: appDir, shell });
 
       console.log(
-        `All done! Your app "${name}" is running in development mode.`
+        `All done! Your app "${name}" is running in development mode.`,
       );
     };
 
@@ -86,6 +87,13 @@ program
   .description("Start Pod development server")
   .action(async (opts) => {
     await startDevServer();
+  });
+
+program
+  .command("compile <files...>")
+  .description("Compile ts files with pod")
+  .action(async (files: string[]) => {
+    await compileFiles(files);
   });
 
 program

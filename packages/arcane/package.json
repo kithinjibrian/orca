@@ -1,6 +1,6 @@
 {
   "name": "@kithinji/arcane",
-  "version": "1.0.8",
+  "version": "1.0.12",
   "description": "",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -28,6 +28,6 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@kithinji/pod": "^1.0.1"
+    "@kithinji/pod": "^1.0.36"
   }
 }
