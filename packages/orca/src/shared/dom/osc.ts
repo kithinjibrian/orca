@@ -421,7 +421,24 @@ export class OSC {
 
       const instance = injector.resolve(ComponentClass);
       instance.__injector = injector;
-      instance.props = cleanProps;
+
+      const mergedProps = Object.create(
+        Object.getPrototypeOf(instance.props || {}),
+      );
+
+      Object.defineProperties(
+        mergedProps,
+        Object.getOwnPropertyDescriptors(instance.props || {}),
+      );
+
+      Object.defineProperties(
+        mergedProps,
+        Object.getOwnPropertyDescriptors(cleanProps || {}),
+      );
+
+      instance.props = mergedProps;
+
+      instance.onInit?.();
 
       if (typeof instance.build !== "function") {
         throw new Error(`Component ${name} does not implement build()`);
