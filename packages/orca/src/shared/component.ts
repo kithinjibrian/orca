@@ -6,6 +6,8 @@ export abstract class OrcaComponent {
   __injector!: Injector;
   props!: any;
 
+  onInit(): void {}
+
   onDestroy(): void {
     this.__cleanup.forEach((cb) => cb());
   }
@@ -14,6 +16,5 @@ export abstract class OrcaComponent {
     this.__cleanup.push(fn);
   }
 
-  abstract onInit(): void;
   abstract build(): Node | JSX.Element | Promise<JSX.Element>;
 }
