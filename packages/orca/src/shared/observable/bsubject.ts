@@ -14,10 +14,6 @@ export class BehaviorSubject<T> extends Subject<T> {
     return this._value;
   }
 
-  public setValue(value: T) {
-    this._value = value;
-  }
-
   public next(value: T): void {
     this._value = value;
     super.next(value);
@@ -26,21 +22,24 @@ export class BehaviorSubject<T> extends Subject<T> {
   public subscribe(
     observerOrNext: Observer<T> | ((value: T) => void),
     error?: (err: any) => void,
-    complete?: () => void
+    complete?: () => void,
   ): Subscription {
     const observer: Observer<T> =
       typeof observerOrNext === "function"
         ? { next: observerOrNext, error, complete }
         : observerOrNext;
 
-    try {
-      observer.next(this._value);
-    } catch (err) {
-      if (observer.error) {
-        observer.error(err);
-      }
+    if (this._hasError) {
+      observer.error?.(this._thrownError);
+      return { unsubscribe: () => {} };
     }
 
+    if (this._isCompleted) {
+      observer.complete?.();
+      return { unsubscribe: () => {} };
+    }
+
+    observer.next(this._value);
     return super.subscribe(observer);
   }
 }

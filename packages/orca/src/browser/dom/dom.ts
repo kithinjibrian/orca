@@ -67,6 +67,7 @@ function buildDOM(value: any): Node {
   if (value == null || typeof value === "boolean") {
     return document.createTextNode("");
   }
+  
   if (Array.isArray(value)) {
     const fragment = document.createDocumentFragment();
     for (const item of value) {

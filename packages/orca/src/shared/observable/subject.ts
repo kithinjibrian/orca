@@ -2,18 +2,26 @@ import { Observer } from "../types";
 import { Observable, Subscription } from "./observable";
 
 export class Subject<T> extends Observable<T> {
-  private subscribers: Set<Observer<T>> = new Set();
-  private _isCompleted = false;
-  private _hasError = false;
+  protected subscribers: Set<Observer<T>> = new Set();
+  protected _isCompleted = false;
+  protected _hasError = false;
+  protected _thrownError: any = null;
 
   constructor() {
     super();
   }
 
+  public asObservable(): Observable<T> {
+    return new Observable<T>((observer) => {
+      const subscription = this.subscribe(observer);
+      return () => subscription.unsubscribe();
+    });
+  }
+
   public subscribe(
     observerOrNext: Observer<T> | ((value: T) => void),
     error?: (err: any) => void,
-    complete?: () => void
+    complete?: () => void,
   ): Subscription {
     if (this._isCompleted) {
       const obs =
@@ -59,17 +67,11 @@ export class Subject<T> extends Observable<T> {
     if (this._isCompleted || this._hasError) return;
 
     this._hasError = true;
-    const currentSubscribers = Array.from(this.subscribers);
+    this._thrownError = err;
 
-    currentSubscribers.forEach((observer) => {
-      if (observer.error) {
-        try {
-          observer.error(err);
-        } catch (e) {
-          console.error("Error in error handler:", e);
-        }
-      }
-    });
+    for (const observer of this.subscribers) {
+      observer.error?.(err);
+    }
 
     this.subscribers.clear();
   }

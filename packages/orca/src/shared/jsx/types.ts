@@ -276,7 +276,8 @@ interface TableCellAttributes extends HTMLAttributes {
 export namespace JSX {
   export interface Element {
     $$typeof: symbol;
-    type: string | JSX.ElementClass;
+    type: any;
+    id: string;
     props: any;
     key: string | number | null;
     action?: "insert" | "update" | "error";
