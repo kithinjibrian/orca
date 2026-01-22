@@ -4,7 +4,6 @@ import { Component, Signal, signal } from "@kithinji/orca";
 import { apply$, style$ } from "@kithinji/arcane";
 import { AppService } from "./app.service";
 import { AppHeader, AppRightbar, AppSidebar, MainArea } from "./components";
-import { Home } from "@kithinji/icons/src/app/components/home.component";
 
 @Component({
   deps: [AppHeader, AppSidebar, AppRightbar, MainArea],
@@ -17,8 +16,6 @@ export class AppPage {
   build() {
     return (
       <div {...apply$(cls.container)}>
-        <Home name="hello" />
-        
         <AppHeader openSignal={this.sidebar} />
         <div {...apply$(cls.content)}>
           <AppSidebar open={this.sidebar.value} />

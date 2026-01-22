@@ -152,6 +152,38 @@ interface AudioHTMLAttributes extends HTMLAttributes {
   muted?: boolean;
 }
 
+interface SVGAttributes extends HTMLAttributes {
+  viewBox?: string;
+  xmlns?: string;
+  fill?: string;
+  stroke?: string;
+  strokeWidth?: number | string;
+  strokeLinecap?: "butt" | "round" | "square";
+  strokeLinejoin?: "miter" | "round" | "bevel";
+  strokeDasharray?: string | number;
+  strokeDashoffset?: string | number;
+  opacity?: number | string;
+  transform?: string;
+  d?: string;
+  cx?: number | string;
+  cy?: number | string;
+  r?: number | string;
+  rx?: number | string;
+  ry?: number | string;
+  x?: number | string;
+  y?: number | string;
+  x1?: number | string;
+  y1?: number | string;
+  x2?: number | string;
+  y2?: number | string;
+  width?: number | string;
+  height?: number | string;
+  points?: string;
+  preserveAspectRatio?: string;
+  fillOpacity?: number | string;
+  strokeOpacity?: number | string;
+}
+
 interface TableCellAttributes extends HTMLAttributes {
   colSpan?: number;
   rowSpan?: number;
@@ -216,6 +248,21 @@ export namespace JSX {
     img: ImageHTMLAttributes;
     video: VideoHTMLAttributes;
     audio: AudioHTMLAttributes;
+
+    // SVG
+    svg: SVGAttributes;
+    path: SVGAttributes;
+    circle: SVGAttributes;
+    rect: SVGAttributes;
+    ellipse: SVGAttributes;
+    line: SVGAttributes;
+    polyline: SVGAttributes;
+    polygon: SVGAttributes;
+    g: SVGAttributes;
+    defs: SVGAttributes;
+    use: SVGAttributes;
+    text: SVGAttributes;
+    tspan: SVGAttributes;
 
     // Lists
     ul: HTMLAttributes;

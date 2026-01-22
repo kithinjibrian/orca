@@ -1,8 +1,0 @@
-node_modules
-dist
-build
-.orca
-*.log
-.env
-.DS_Store
-public

@@ -1,6 +1,6 @@
 {
   "name": "@kithinji/orca",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "A fullstack web framework for Node.js and browser environments",
   "types": "./dist/types/index.d.ts",
   "exports": {
