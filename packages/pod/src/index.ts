@@ -33,7 +33,7 @@ import { fileURLToPath } from "url";
 
 const program = new Command();
 
-program.name("pod").description("Pod cli tool").version("1.0.41");
+program.name("pod").description("Pod cli tool").version("1.0.43");
 
 program
   .command("new <name> [type]")
@@ -148,10 +148,4 @@ program
     }
   });
 
-const isMainModule = process.argv[1] === fileURLToPath(import.meta.url);
-
-if (isMainModule) {
-  program.parse(process.argv);
-}
-
-export { program };
+program.parse(process.argv);
