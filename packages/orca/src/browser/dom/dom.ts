@@ -196,7 +196,9 @@ export function createComponent(
     builtRoute = buildRouteFromProps(routePattern, props, ComponentClass.name);
   }
 
-  const mergedProps = Object.create(Object.getPrototypeOf(instance.props));
+  const mergedProps = Object.create(
+    Object.getPrototypeOf(instance.props || {}),
+  );
 
   Object.defineProperties(
     mergedProps,

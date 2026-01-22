@@ -167,7 +167,9 @@ export class StreamRenderer {
 
     const instance: any = componentInjector.resolve(ComponentClass);
 
-    const mergedProps = Object.create(Object.getPrototypeOf(instance.props));
+    const mergedProps = Object.create(
+      Object.getPrototypeOf(instance.props || {}),
+    );
 
     Object.defineProperties(
       mergedProps,
