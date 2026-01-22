@@ -202,10 +202,13 @@ export function createComponent(
 
   Object.defineProperties(
     mergedProps,
-    Object.getOwnPropertyDescriptors(instance.props),
+    Object.getOwnPropertyDescriptors(instance.props || {}),
   );
 
-  Object.defineProperties(mergedProps, Object.getOwnPropertyDescriptors(props));
+  Object.defineProperties(
+    mergedProps,
+    Object.getOwnPropertyDescriptors(props || {}),
+  );
 
   instance.props = mergedProps;
 

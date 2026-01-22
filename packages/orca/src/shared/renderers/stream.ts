@@ -173,7 +173,7 @@ export class StreamRenderer {
 
     Object.defineProperties(
       mergedProps,
-      Object.getOwnPropertyDescriptors(instance.props),
+      Object.getOwnPropertyDescriptors(instance.props || {}),
     );
 
     Object.defineProperties(
