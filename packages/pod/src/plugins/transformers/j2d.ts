@@ -30,7 +30,7 @@ class NodeTypeGuards {
   }
 
   isBehaviorSubjectMember(
-    expr: BabelTypes.Node
+    expr: BabelTypes.Node,
   ): expr is BabelTypes.MemberExpression {
     return (
       this.t.isMemberExpression(expr) &&
@@ -94,10 +94,10 @@ class ASTUtilities {
 
   insertBeforeReturn(
     body: BabelTypes.Statement[],
-    statements: BabelTypes.Statement[]
+    statements: BabelTypes.Statement[],
   ): void {
     const returnIndex = body.findIndex((stmt) =>
-      this.t.isReturnStatement(stmt)
+      this.t.isReturnStatement(stmt),
     );
     if (returnIndex !== -1) {
       body.splice(returnIndex, 0, ...statements);
@@ -108,7 +108,7 @@ class ASTUtilities {
 
   addEffectCleanup(
     scope: any,
-    effectCall: BabelTypes.CallExpression
+    effectCall: BabelTypes.CallExpression,
   ): BabelTypes.Statement[] {
     const cleanupId = scope.generateUidIdentifier("cleanup");
 
@@ -123,7 +123,7 @@ class ASTUtilities {
           "=",
           this.t.memberExpression(
             this.t.identifier("self"),
-            this.t.identifier("__cleanup")
+            this.t.identifier("__cleanup"),
           ),
           this.t.arrayExpression([
             this.t.spreadElement(
@@ -131,14 +131,14 @@ class ASTUtilities {
                 "||",
                 this.t.memberExpression(
                   this.t.identifier("self"),
-                  this.t.identifier("__cleanup")
+                  this.t.identifier("__cleanup"),
                 ),
-                this.t.arrayExpression([])
-              )
+                this.t.arrayExpression([]),
+              ),
             ),
             cleanupId,
-          ])
-        )
+          ]),
+        ),
       ),
     ];
   }
@@ -151,7 +151,7 @@ class JSXUtilities {
     nameNode:
       | BabelTypes.JSXIdentifier
       | BabelTypes.JSXMemberExpression
-      | BabelTypes.JSXNamespacedName
+      | BabelTypes.JSXNamespacedName,
   ): string | null {
     if (this.t.isJSXIdentifier(nameNode)) {
       return nameNode.name;
@@ -219,12 +219,12 @@ class ObservableManager {
   collectObservables(
     node: BabelTypes.Node,
     observables: Map<string, BabelTypes.Expression>,
-    astUtils: ASTUtilities
+    astUtils: ASTUtilities,
   ): void {
     this.walkNode(node, (n: any) => {
       if (this.guards.isBehaviorSubjectMember(n)) {
         const observable = astUtils.replaceThisWithSelf(
-          n.object as BabelTypes.Expression
+          n.object as BabelTypes.Expression,
         );
         const key = this.getObservableKey(observable);
         if (!observables.has(key)) {
@@ -237,7 +237,7 @@ class ObservableManager {
   replaceObservablesWithSignals<T extends BabelTypes.Node>(
     node: T,
     observableSignals: Map<string, BabelTypes.Identifier>,
-    astUtils: ASTUtilities
+    astUtils: ASTUtilities,
   ): T {
     const cloned = this.t.cloneNode(node, true) as T;
 
@@ -281,32 +281,32 @@ class ElementTransformer {
     private guards: NodeTypeGuards,
     private astUtils: ASTUtilities,
     private jsxUtils: JSXUtilities,
-    private observableManager: ObservableManager
+    private observableManager: ObservableManager,
   ) {}
 
   transformElement(
     path: { node: BabelTypes.JSXElement | BabelTypes.JSXFragment },
     scope: any,
-    context: TransformContext
+    context: TransformContext,
   ): TransformResult {
     if (this.t.isJSXFragment(path.node)) {
       return this.transformFragment(
         path as { node: BabelTypes.JSXFragment },
         scope,
-        context
+        context,
       );
     }
     return this.transformJSXElement(
       path as { node: BabelTypes.JSXElement },
       scope,
-      context
+      context,
     );
   }
 
   private transformJSXElement(
     path: { node: BabelTypes.JSXElement },
     scope: any,
-    context: TransformContext
+    context: TransformContext,
   ): TransformResult {
     const jsxElement = path.node;
     const tag = this.jsxUtils.getComponentName(jsxElement.openingElement.name);
@@ -328,7 +328,7 @@ class ElementTransformer {
     jsxElement: BabelTypes.JSXElement,
     tag: string,
     scope: any,
-    context: TransformContext
+    context: TransformContext,
   ): TransformResult {
     const elId = scope.generateUidIdentifier("el");
     const statements: BabelTypes.Statement[] = [];
@@ -342,7 +342,7 @@ class ElementTransformer {
     this.processComponentAttributes(
       jsxElement.openingElement.attributes,
       props,
-      context
+      context,
     );
 
     this.processChildren(
@@ -350,15 +350,17 @@ class ElementTransformer {
       children,
       statements,
       scope,
-      context
+      context,
     );
 
     if (children.length > 0) {
       props.push(
         this.t.objectProperty(
           this.t.identifier("children"),
-          children.length === 1 ? children[0] : this.t.arrayExpression(children)
-        )
+          children.length === 1
+            ? children[0]
+            : this.t.arrayExpression(children),
+        ),
       );
     }
 
@@ -370,9 +372,9 @@ class ElementTransformer {
             this.astUtils.buildMemberExpression(tag),
             this.t.objectExpression(props),
             this.t.identifier("self"),
-          ])
+          ]),
         ),
-      ])
+      ]),
     );
 
     return { id: elId, statements };
@@ -382,24 +384,37 @@ class ElementTransformer {
     jsxElement: BabelTypes.JSXElement,
     tag: string,
     scope: any,
-    context: TransformContext
+    context: TransformContext,
   ): TransformResult {
     const elId = scope.generateUidIdentifier("el");
     const statements: BabelTypes.Statement[] = [];
+
+    const isSVGTag = this.isSVGTag(tag);
 
     statements.push(
       this.t.variableDeclaration("var", [
         this.t.variableDeclarator(
           elId,
-          this.t.callExpression(
-            this.t.memberExpression(
-              this.t.identifier("document"),
-              this.t.identifier("createElement")
-            ),
-            [this.t.stringLiteral(tag)]
-          )
+          isSVGTag
+            ? this.t.callExpression(
+                this.t.memberExpression(
+                  this.t.identifier("document"),
+                  this.t.identifier("createElementNS"),
+                ),
+                [
+                  this.t.stringLiteral("http://www.w3.org/2000/svg"),
+                  this.t.stringLiteral(tag),
+                ],
+              )
+            : this.t.callExpression(
+                this.t.memberExpression(
+                  this.t.identifier("document"),
+                  this.t.identifier("createElement"),
+                ),
+                [this.t.stringLiteral(tag)],
+              ),
         ),
-      ])
+      ]),
     );
 
     const { hasRef, refValue, hasDangerousHTML, dangerousHTMLValue } =
@@ -409,14 +424,14 @@ class ElementTransformer {
         statements,
         scope,
         context,
-        tag
+        tag,
       );
 
     if (hasRef && refValue) {
       statements.push(
         this.t.expressionStatement(
-          this.t.assignmentExpression("=", refValue as BabelTypes.LVal, elId)
-        )
+          this.t.assignmentExpression("=", refValue as BabelTypes.LVal, elId),
+        ),
       );
     }
 
@@ -437,15 +452,15 @@ class ElementTransformer {
             this.t.memberExpression(elId, this.t.identifier("innerHTML")),
             this.t.memberExpression(
               dangerousHTMLValue,
-              this.t.identifier("__html")
-            )
-          )
+              this.t.identifier("__html"),
+            ),
+          ),
         ),
       ]);
 
       const cleanupStatements = this.astUtils.addEffectCleanup(
         scope,
-        effectCall
+        effectCall,
       );
 
       statements.push(...cleanupStatements);
@@ -457,17 +472,48 @@ class ElementTransformer {
         elId,
         statements,
         scope,
-        context
+        context,
       );
     }
 
     return { id: elId, statements };
   }
 
+  private isSVGTag(tag: string): boolean {
+    const svgTags = new Set([
+      "svg",
+      "circle",
+      "rect",
+      "line",
+      "path",
+      "polygon",
+      "polyline",
+      "ellipse",
+      "text",
+      "tspan",
+      "g",
+      "defs",
+      "use",
+      "symbol",
+      "marker",
+      "clipPath",
+      "mask",
+      "pattern",
+      "linearGradient",
+      "radialGradient",
+      "stop",
+      "animate",
+      "animateTransform",
+      "foreignObject",
+      "image",
+    ]);
+    return svgTags.has(tag);
+  }
+
   private transformFragment(
     path: { node: BabelTypes.JSXFragment },
     scope: any,
-    context: TransformContext
+    context: TransformContext,
   ): TransformResult {
     const fragId = scope.generateUidIdentifier("frag");
     const statements: BabelTypes.Statement[] = [];
@@ -479,12 +525,12 @@ class ElementTransformer {
           this.t.callExpression(
             this.t.memberExpression(
               this.t.identifier("document"),
-              this.t.identifier("createDocumentFragment")
+              this.t.identifier("createDocumentFragment"),
             ),
-            []
-          )
+            [],
+          ),
         ),
-      ])
+      ]),
     );
 
     this.processDOMChildren(
@@ -492,7 +538,7 @@ class ElementTransformer {
       fragId,
       statements,
       scope,
-      context
+      context,
     );
 
     return { id: fragId, statements };
@@ -505,22 +551,22 @@ class ElementTransformer {
       | BabelTypes.ObjectMethod
       | BabelTypes.SpreadElement
     >,
-    context: TransformContext
+    context: TransformContext,
   ): void {
     for (const attr of attributes) {
       if (this.t.isJSXSpreadAttribute(attr)) {
         this.observableManager.collectObservables(
           attr.argument,
           context.observables,
-          this.astUtils
+          this.astUtils,
         );
         const replaced = this.observableManager.replaceObservablesWithSignals(
           attr.argument,
           context.observableSignals,
-          this.astUtils
+          this.astUtils,
         );
         props.push(
-          this.t.spreadElement(this.astUtils.replaceThisWithSelf(replaced))
+          this.t.spreadElement(this.astUtils.replaceThisWithSelf(replaced)),
         );
         continue;
       }
@@ -534,7 +580,7 @@ class ElementTransformer {
         this.observableManager.collectObservables(
           expr,
           context.observables,
-          this.astUtils
+          this.astUtils,
         );
 
         if (
@@ -544,7 +590,7 @@ class ElementTransformer {
           const replaced = this.observableManager.replaceObservablesWithSignals(
             expr,
             context.observableSignals,
-            this.astUtils
+            this.astUtils,
           );
           props.push(
             this.t.objectMethod(
@@ -553,30 +599,30 @@ class ElementTransformer {
               [],
               this.t.blockStatement([
                 this.t.returnStatement(
-                  this.astUtils.replaceThisWithSelf(replaced)
+                  this.astUtils.replaceThisWithSelf(replaced),
                 ),
-              ])
-            )
+              ]),
+            ),
           );
         } else {
           const replaced = this.observableManager.replaceObservablesWithSignals(
             expr,
             context.observableSignals,
-            this.astUtils
+            this.astUtils,
           );
           props.push(
             this.t.objectProperty(
               this.t.identifier(key),
-              this.astUtils.replaceThisWithSelf(replaced)
-            )
+              this.astUtils.replaceThisWithSelf(replaced),
+            ),
           );
         }
       } else {
         props.push(
           this.t.objectProperty(
             this.t.identifier(key),
-            this.t.booleanLiteral(true)
-          )
+            this.t.booleanLiteral(true),
+          ),
         );
       }
     }
@@ -588,7 +634,7 @@ class ElementTransformer {
     statements: BabelTypes.Statement[],
     scope: any,
     context: TransformContext,
-    tag?: string
+    tag?: string,
   ): {
     hasRef: boolean;
     refValue: BabelTypes.Expression | null;
@@ -607,12 +653,12 @@ class ElementTransformer {
         this.observableManager.collectObservables(
           attr.argument,
           context.observables,
-          this.astUtils
+          this.astUtils,
         );
         const replaced = this.observableManager.replaceObservablesWithSignals(
           attr.argument,
           context.observableSignals,
-          this.astUtils
+          this.astUtils,
         );
 
         const effectCall = this.t.callExpression(this.t.identifier("$effect"), [
@@ -621,13 +667,13 @@ class ElementTransformer {
             this.t.callExpression(this.t.identifier("$spread"), [
               elId,
               this.astUtils.replaceThisWithSelf(replaced),
-            ])
+            ]),
           ),
         ]);
 
         const cleanupStatements = this.astUtils.addEffectCleanup(
           scope,
-          effectCall
+          effectCall,
         );
 
         statements.push(...cleanupStatements);
@@ -643,12 +689,12 @@ class ElementTransformer {
           this.observableManager.collectObservables(
             attr.value.expression,
             context.observables,
-            this.astUtils
+            this.astUtils,
           );
           const replaced = this.observableManager.replaceObservablesWithSignals(
             attr.value.expression as BabelTypes.Expression,
             context.observableSignals,
-            this.astUtils
+            this.astUtils,
           );
           refValue = this.astUtils.replaceThisWithSelf(replaced);
         }
@@ -661,12 +707,12 @@ class ElementTransformer {
           this.observableManager.collectObservables(
             attr.value.expression,
             context.observables,
-            this.astUtils
+            this.astUtils,
           );
           const replaced = this.observableManager.replaceObservablesWithSignals(
             attr.value.expression as BabelTypes.Expression,
             context.observableSignals,
-            this.astUtils
+            this.astUtils,
           );
           dangerousHTMLValue = this.astUtils.replaceThisWithSelf(replaced);
         }
@@ -704,7 +750,7 @@ class ElementTransformer {
           this.t.callExpression(
             this.t.memberExpression(
               elId,
-              this.t.identifier("addEventListener")
+              this.t.identifier("addEventListener"),
             ),
             [
               this.t.stringLiteral("click"),
@@ -713,14 +759,14 @@ class ElementTransformer {
                 this.t.callExpression(
                   this.t.memberExpression(
                     this.t.identifier("Orca"),
-                    this.t.identifier("navigate")
+                    this.t.identifier("navigate"),
                   ),
-                  [this.t.identifier("event"), this.t.stringLiteral(hrefValue)]
-                )
+                  [this.t.identifier("event"), this.t.stringLiteral(hrefValue)],
+                ),
               ),
-            ]
-          )
-        )
+            ],
+          ),
+        ),
       );
     }
 
@@ -749,7 +795,7 @@ class ElementTransformer {
     attr: BabelTypes.JSXAttribute,
     elId: BabelTypes.Identifier,
     statements: BabelTypes.Statement[],
-    context: TransformContext
+    context: TransformContext,
   ): void {
     const eventName = key.slice(2).toLowerCase();
     let handler: BabelTypes.Expression = this.t.nullLiteral();
@@ -758,12 +804,12 @@ class ElementTransformer {
       this.observableManager.collectObservables(
         attr.value.expression,
         context.observables,
-        this.astUtils
+        this.astUtils,
       );
       const replaced = this.observableManager.replaceObservablesWithSignals(
         attr.value.expression as BabelTypes.Expression,
         context.observableSignals,
-        this.astUtils
+        this.astUtils,
       );
       handler = this.astUtils.replaceThisWithSelf(replaced);
     }
@@ -772,9 +818,9 @@ class ElementTransformer {
       this.t.expressionStatement(
         this.t.callExpression(
           this.t.memberExpression(elId, this.t.identifier("addEventListener")),
-          [this.t.stringLiteral(eventName), handler]
-        )
-      )
+          [this.t.stringLiteral(eventName), handler],
+        ),
+      ),
     );
   }
 
@@ -783,19 +829,19 @@ class ElementTransformer {
     elId: BabelTypes.Identifier,
     statements: BabelTypes.Statement[],
     scope: any,
-    context: TransformContext
+    context: TransformContext,
   ): void {
     if (!this.t.isJSXExpressionContainer(attr.value)) return;
 
     this.observableManager.collectObservables(
       attr.value.expression,
       context.observables,
-      this.astUtils
+      this.astUtils,
     );
     const replaced = this.observableManager.replaceObservablesWithSignals(
       attr.value.expression as BabelTypes.Expression,
       context.observableSignals,
-      this.astUtils
+      this.astUtils,
     );
 
     const effectCall = this.t.callExpression(this.t.identifier("$effect"), [
@@ -804,7 +850,7 @@ class ElementTransformer {
         this.t.callExpression(this.t.identifier("$style"), [
           elId,
           this.astUtils.replaceThisWithSelf(replaced),
-        ])
+        ]),
       ),
     ]);
     const cleanupStatements = this.astUtils.addEffectCleanup(scope, effectCall);
@@ -817,7 +863,7 @@ class ElementTransformer {
     attr: BabelTypes.JSXAttribute,
     elId: BabelTypes.Identifier,
     statements: BabelTypes.Statement[],
-    context: TransformContext
+    context: TransformContext,
   ): void {
     const attrName = key === "className" ? "class" : key;
     let value: BabelTypes.Expression;
@@ -828,12 +874,12 @@ class ElementTransformer {
       this.observableManager.collectObservables(
         attr.value.expression,
         context.observables,
-        this.astUtils
+        this.astUtils,
       );
       const replaced = this.observableManager.replaceObservablesWithSignals(
         attr.value.expression as BabelTypes.Expression,
         context.observableSignals,
-        this.astUtils
+        this.astUtils,
       );
       value = this.astUtils.replaceThisWithSelf(replaced);
     } else {
@@ -844,9 +890,9 @@ class ElementTransformer {
       this.t.expressionStatement(
         this.t.callExpression(
           this.t.memberExpression(elId, this.t.identifier("setAttribute")),
-          [this.t.stringLiteral(attrName), value]
-        )
-      )
+          [this.t.stringLiteral(attrName), value],
+        ),
+      ),
     );
   }
 
@@ -861,7 +907,7 @@ class ElementTransformer {
     childExpressions: Array<BabelTypes.Expression>,
     statements: BabelTypes.Statement[],
     scope: any,
-    context: TransformContext
+    context: TransformContext,
   ): void {
     for (const child of children) {
       if (this.t.isJSXText(child)) {
@@ -873,12 +919,12 @@ class ElementTransformer {
           this.observableManager.collectObservables(
             expr,
             context.observables,
-            this.astUtils
+            this.astUtils,
           );
           const replaced = this.observableManager.replaceObservablesWithSignals(
             expr as BabelTypes.Expression,
             context.observableSignals,
-            this.astUtils
+            this.astUtils,
           );
           childExpressions.push(this.astUtils.replaceThisWithSelf(replaced));
         }
@@ -901,7 +947,7 @@ class ElementTransformer {
     parentId: BabelTypes.Identifier,
     statements: BabelTypes.Statement[],
     scope: any,
-    context: TransformContext
+    context: TransformContext,
   ): void {
     for (const child of children) {
       if (this.t.isJSXText(child)) {
@@ -912,8 +958,8 @@ class ElementTransformer {
             this.t.callExpression(this.t.identifier("$insert"), [
               parentId,
               this.t.stringLiteral(text),
-            ])
-          )
+            ]),
+          ),
         );
       } else if (this.t.isJSXExpressionContainer(child)) {
         const expr = child.expression;
@@ -922,30 +968,30 @@ class ElementTransformer {
         this.observableManager.collectObservables(
           expr,
           context.observables,
-          this.astUtils
+          this.astUtils,
         );
 
         let insertedValue: BabelTypes.Expression;
         if (this.guards.isSignalMember(expr)) {
           insertedValue = this.astUtils.getObject(
-            expr as BabelTypes.Expression
+            expr as BabelTypes.Expression,
           );
         } else if (this.guards.isBehaviorSubjectMember(expr)) {
           const replaced = this.observableManager.replaceObservablesWithSignals(
             expr as BabelTypes.Expression,
             context.observableSignals,
-            this.astUtils
+            this.astUtils,
           );
           insertedValue = this.astUtils.getObject(replaced);
         } else {
           const replaced = this.observableManager.replaceObservablesWithSignals(
             expr as BabelTypes.Expression,
             context.observableSignals,
-            this.astUtils
+            this.astUtils,
           );
           insertedValue = this.t.arrowFunctionExpression(
             [],
-            this.astUtils.replaceThisWithSelf(replaced)
+            this.astUtils.replaceThisWithSelf(replaced),
           );
         }
 
@@ -954,8 +1000,8 @@ class ElementTransformer {
             this.t.callExpression(this.t.identifier("$insert"), [
               parentId,
               insertedValue,
-            ])
-          )
+            ]),
+          ),
         );
       } else if (this.t.isJSXElement(child) || this.t.isJSXFragment(child)) {
         const childEl = this.transformElement({ node: child }, scope, context);
@@ -965,8 +1011,8 @@ class ElementTransformer {
             this.t.callExpression(this.t.identifier("$insert"), [
               parentId,
               childEl.id,
-            ])
-          )
+            ]),
+          ),
         );
       }
     }
@@ -983,7 +1029,7 @@ export function j2d({ types: t }: PluginContext): PluginObj<PluginState> {
     guards,
     astUtils,
     jsxUtils,
-    observableManager
+    observableManager,
   );
 
   return {
@@ -1009,11 +1055,11 @@ export function j2d({ types: t }: PluginContext): PluginObj<PluginState> {
                 [
                   t.importSpecifier(
                     t.identifier(helper.local),
-                    t.identifier(helper.imported)
+                    t.identifier(helper.imported),
                   ),
                 ],
-                t.stringLiteral("@kithinji/orca")
-              )
+                t.stringLiteral("@kithinji/orca"),
+              ),
             );
           }
 
@@ -1047,14 +1093,14 @@ export function j2d({ types: t }: PluginContext): PluginObj<PluginState> {
             observableManager.collectObservables(
               jsxPath.node,
               observables,
-              astUtils
+              astUtils,
             );
           },
           JSXFragment(jsxPath: NodePath<BabelTypes.JSXFragment>) {
             observableManager.collectObservables(
               jsxPath.node,
               observables,
-              astUtils
+              astUtils,
             );
           },
         });
@@ -1062,7 +1108,7 @@ export function j2d({ types: t }: PluginContext): PluginObj<PluginState> {
         body.body.unshift(
           t.variableDeclaration("const", [
             t.variableDeclarator(t.identifier("self"), t.thisExpression()),
-          ])
+          ]),
         );
 
         const observableSignals = new Map<string, BabelTypes.Identifier>();
@@ -1078,9 +1124,9 @@ export function j2d({ types: t }: PluginContext): PluginObj<PluginState> {
                 t.callExpression(t.identifier("$toSignal"), [
                   observable,
                   t.identifier("self"),
-                ])
+                ]),
               ),
-            ])
+            ]),
           );
         }
 
@@ -1098,17 +1144,17 @@ export function j2d({ types: t }: PluginContext): PluginObj<PluginState> {
             const { id, statements } = elementTransformer.transformElement(
               jsxPath as any,
               jsxPath.scope,
-              context
+              context,
             );
 
             jsxPath.replaceWith(
               t.callExpression(
                 t.arrowFunctionExpression(
                   [],
-                  t.blockStatement([...statements, t.returnStatement(id)])
+                  t.blockStatement([...statements, t.returnStatement(id)]),
                 ),
-                []
-              )
+                [],
+              ),
             );
           },
           JSXFragment(jsxPath: NodePath<BabelTypes.JSXFragment>) {
@@ -1118,17 +1164,17 @@ export function j2d({ types: t }: PluginContext): PluginObj<PluginState> {
             const { id, statements } = elementTransformer.transformElement(
               jsxPath as any,
               jsxPath.scope,
-              context
+              context,
             );
 
             jsxPath.replaceWith(
               t.callExpression(
                 t.arrowFunctionExpression(
                   [],
-                  t.blockStatement([...statements, t.returnStatement(id)])
+                  t.blockStatement([...statements, t.returnStatement(id)]),
                 ),
-                []
-              )
+                [],
+              ),
             );
           },
         });
