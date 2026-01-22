@@ -33,7 +33,7 @@ import { fileURLToPath } from "url";
 
 const program = new Command();
 
-program.name("pod").description("Pod cli tool").version("1.0.39");
+program.name("pod").description("Pod cli tool").version("1.0.41");
 
 program
   .command("new <name> [type]")

@@ -180,6 +180,68 @@ class JSXUtilities {
   isComponentTag(tag: string | null): boolean {
     return tag ? /^[A-Z]/.test(tag) : false;
   }
+
+  isSVGTag(tag: string): boolean {
+    const svgTags = new Set([
+      "svg",
+      "circle",
+      "rect",
+      "line",
+      "path",
+      "polygon",
+      "polyline",
+      "ellipse",
+      "text",
+      "tspan",
+      "g",
+      "defs",
+      "use",
+      "symbol",
+      "marker",
+      "clipPath",
+      "mask",
+      "pattern",
+      "linearGradient",
+      "radialGradient",
+      "stop",
+      "animate",
+      "animateTransform",
+      "foreignObject",
+      "image",
+      "textPath",
+      "feBlend",
+      "feColorMatrix",
+      "feComponentTransfer",
+      "feComposite",
+      "feConvolveMatrix",
+      "feDiffuseLighting",
+      "feDisplacementMap",
+      "feDistantLight",
+      "feFlood",
+      "feFuncA",
+      "feFuncB",
+      "feFuncG",
+      "feFuncR",
+      "feGaussianBlur",
+      "feImage",
+      "feMerge",
+      "feMergeNode",
+      "feMorphology",
+      "feOffset",
+      "fePointLight",
+      "feSpecularLighting",
+      "feSpotLight",
+      "feTile",
+      "feTurbulence",
+      "filter",
+      "metadata",
+      "title",
+      "desc",
+      "switch",
+      "view",
+    ]);
+    return svgTags.has(tag);
+  }
 }
 
 class ObservableManager {
@@ -388,9 +450,9 @@ class ElementTransformer {
   ): TransformResult {
     const elId = scope.generateUidIdentifier("el");
     const statements: BabelTypes.Statement[] = [];
+    const isSVGTag = this.jsxUtils.isSVGTag(tag);
 
-    const isSVGTag = this.isSVGTag(tag);
-
+    // Create element with proper namespace for SVG
     statements.push(
       this.t.variableDeclaration("var", [
         this.t.variableDeclarator(
@@ -435,14 +497,6 @@ class ElementTransformer {
       );
     }
 
-    /*
-      let cleanup = effect(() => {
-        el.innerHTML = {
-          __html: value
-        }.__html
-      })
-    */
-
     if (hasDangerousHTML && dangerousHTMLValue) {
       const effectCall = this.t.callExpression(this.t.identifier("$effect"), [
         this.t.arrowFunctionExpression(
@@ -477,37 +531,6 @@ class ElementTransformer {
     }
 
     return { id: elId, statements };
-  }
-
-  private isSVGTag(tag: string): boolean {
-    const svgTags = new Set([
-      "svg",
-      "circle",
-      "rect",
-      "line",
-      "path",
-      "polygon",
-      "polyline",
-      "ellipse",
-      "text",
-      "tspan",
-      "g",
-      "defs",
-      "use",
-      "symbol",
-      "marker",
-      "clipPath",
-      "mask",
-      "pattern",
-      "linearGradient",
-      "radialGradient",
-      "stop",
-      "animate",
-      "animateTransform",
-      "foreignObject",
-      "image",
-    ]);
-    return svgTags.has(tag);
   }
 
   private transformFragment(
