@@ -29,7 +29,7 @@ export class StreamRenderer {
 
   constructor(
     private rootInjector: Injector,
-    options: StreamRendererOptions = {}
+    options: StreamRendererOptions = {},
   ) {
     this.options = {
       timeout: options.timeout ?? 30000,
@@ -38,7 +38,7 @@ export class StreamRenderer {
 
   render(
     vnode: JSX.Element,
-    parentInjector: Injector = this.rootInjector
+    parentInjector: Injector = this.rootInjector,
   ): any {
     return this.stream(vnode, parentInjector);
   }
@@ -71,7 +71,7 @@ export class StreamRenderer {
 
     if (this.renderingNodes.has(vnode)) {
       throw new Error(
-        `Circular reference detected while rendering component "${vnode.type?.name}".`
+        `Circular reference detected while rendering component "${vnode.type?.name}".`,
       );
     }
 
@@ -113,7 +113,7 @@ export class StreamRenderer {
     if (dangerouslySetInnerHTML?.__html) {
       processedChildren = this.parseHTMLToJSX(
         dangerouslySetInnerHTML.__html,
-        injector
+        injector,
       );
     } else {
       processedChildren = this.mapChildren(children, injector);
@@ -160,13 +160,26 @@ export class StreamRenderer {
       if (localProviders.length > 0) {
         componentInjector = new Injector(
           localProviders.map((p) => ProviderNormalizer.normalize(p)),
-          injector
+          injector,
         );
       }
     }
 
     const instance: any = componentInjector.resolve(ComponentClass);
-    instance.props = vnode.props || {};
+
+    const mergedProps = Object.create(Object.getPrototypeOf(instance.props));
+
+    Object.defineProperties(
+      mergedProps,
+      Object.getOwnPropertyDescriptors(instance.props),
+    );
+
+    Object.defineProperties(
+      mergedProps,
+      Object.getOwnPropertyDescriptors(vnode.props || {}),
+    );
+
+    instance.props = mergedProps;
 
     const childVNode = instance.build();
 
@@ -192,7 +205,7 @@ export class StreamRenderer {
 
   private parseHTMLToJSX(html: string, injector: Injector): any {
     const { document } = parseHTML(
-      `<!doctype html><html><body>${html}</body></html>`
+      `<!doctype html><html><body>${html}</body></html>`,
     );
 
     const convertElement = (element: any): any => {
@@ -215,7 +228,7 @@ export class StreamRenderer {
             name.includes("-")
           ) {
             name = name.replace(/-([a-z])/g, (_: string, letter: string) =>
-              letter.toUpperCase()
+              letter.toUpperCase(),
             );
           }
 
@@ -292,7 +305,7 @@ export class StreamRenderer {
   private createPendingReference(
     vnode: JSX.Element,
     promise: Promise<any>,
-    injector: Injector
+    injector: Injector,
   ) {
     const id = vnode.id;
     const abortController = new AbortController();
@@ -304,8 +317,8 @@ export class StreamRenderer {
           new Error(
             `Component ${vnode.type.name || "Unknown"} timed out after ${
               this.options.timeout
-            }ms`
-          )
+            }ms`,
+          ),
         );
       }, this.options.timeout);
 

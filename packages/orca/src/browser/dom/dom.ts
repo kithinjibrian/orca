@@ -67,7 +67,7 @@ function buildDOM(value: any): Node {
   if (value == null || typeof value === "boolean") {
     return document.createTextNode("");
   }
-  
+
   if (Array.isArray(value)) {
     const fragment = document.createDocumentFragment();
     for (const item of value) {
@@ -148,20 +148,20 @@ function autoCleanup(element: Node, callback: Function) {
 export function createComponent(
   ComponentClass: Constructor,
   props: any = {},
-  parentComponent: OrcaComponent
+  parentComponent: OrcaComponent,
 ) {
   let injector = getCurrentInjector();
   if (!injector) {
     throw new Error(
       `Cannot create component ${ComponentClass.name} outside injection context. ` +
-        `No injector available from current context or parent component.`
+        `No injector available from current context or parent component.`,
     );
   }
 
   const isComponent = Reflect.getMetadata(COMPONENT, ComponentClass);
   if (!isComponent) {
     throw new Error(
-      `${ComponentClass.name} is not decorated with @Component()`
+      `${ComponentClass.name} is not decorated with @Component()`,
     );
   }
 
@@ -172,7 +172,7 @@ export function createComponent(
     console.log(e);
 
     throw new Error(
-      `Failed to resolve component ${ComponentClass.name}: ${e.message}`
+      `Failed to resolve component ${ComponentClass.name}: ${e.message}`,
     );
   }
 
@@ -182,7 +182,7 @@ export function createComponent(
   if (localProviders.length > 0) {
     injector = new Injector(
       localProviders.map((p) => ProviderNormalizer.normalize(p)),
-      parentComponent.__injector || injector
+      parentComponent.__injector || injector,
     );
     instance.__injector = injector;
   } else {
@@ -196,12 +196,23 @@ export function createComponent(
     builtRoute = buildRouteFromProps(routePattern, props, ComponentClass.name);
   }
 
-  instance.props = props;
+  const mergedProps = Object.create(Object.getPrototypeOf(instance.props));
+
+  Object.defineProperties(
+    mergedProps,
+    Object.getOwnPropertyDescriptors(instance.props),
+  );
+
+  Object.defineProperties(mergedProps, Object.getOwnPropertyDescriptors(props));
+
+  instance.props = mergedProps;
+
+  instance.onInit?.();
 
   const root = instance.build();
   if (!(root instanceof Node)) {
     throw new Error(
-      `Component ${ComponentClass.name}.build() must return a DOM Node`
+      `Component ${ComponentClass.name}.build() must return a DOM Node`,
     );
   }
 
@@ -227,7 +238,7 @@ export function createComponent(
 function buildRouteFromProps(
   routePattern: string,
   props: any,
-  componentName: string
+  componentName: string,
 ): string {
   const [pathPattern, queryPattern] = routePattern.split("?");
 
@@ -242,7 +253,7 @@ function buildRouteFromProps(
       if (paramValue === undefined || paramValue === null) {
         throw new Error(
           `Missing required prop "${paramName}" for route parameter in component ${componentName}. ` +
-            `Route pattern: "${routePattern}"`
+            `Route pattern: "${routePattern}"`,
         );
       }
 
@@ -264,7 +275,7 @@ function buildRouteFromProps(
         if (!isOptional) {
           throw new Error(
             `Missing required prop "${paramName}" for query parameter in component ${componentName}. ` +
-              `Route pattern: "${routePattern}"`
+              `Route pattern: "${routePattern}"`,
           );
         }
         continue;
@@ -272,8 +283,8 @@ function buildRouteFromProps(
 
       queryParts.push(
         `${encodeURIComponent(paramName)}=${encodeURIComponent(
-          String(paramValue)
-        )}`
+          String(paramValue),
+        )}`,
       );
     }
 
@@ -287,7 +298,7 @@ function buildRouteFromProps(
 
 export function style(
   el: HTMLElement,
-  styleObj: Record<string, any> | (() => Record<string, any>)
+  styleObj: Record<string, any> | (() => Record<string, any>),
 ): void {
   if (typeof styleObj === "function") {
     const cleanup = effect(() => {
