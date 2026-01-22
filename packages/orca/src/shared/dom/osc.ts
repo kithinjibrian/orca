@@ -19,6 +19,65 @@ interface BuildResult {
 export class OSC {
   public tree: VNode;
   private pendingRefs = new Map<string, JSX.Element>();
+  private static readonly SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+  private static readonly SVG_TAGS = new Set([
+    "svg",
+    "circle",
+    "rect",
+    "line",
+    "path",
+    "polygon",
+    "polyline",
+    "ellipse",
+    "text",
+    "tspan",
+    "g",
+    "defs",
+    "use",
+    "symbol",
+    "marker",
+    "clipPath",
+    "mask",
+    "pattern",
+    "linearGradient",
+    "radialGradient",
+    "stop",
+    "animate",
+    "animateTransform",
+    "foreignObject",
+    "image",
+    "textPath",
+    "feBlend",
+    "feColorMatrix",
+    "feComponentTransfer",
+    "feComposite",
+    "feConvolveMatrix",
+    "feDiffuseLighting",
+    "feDisplacementMap",
+    "feDistantLight",
+    "feFlood",
+    "feFuncA",
+    "feFuncB",
+    "feFuncG",
+    "feFuncR",
+    "feGaussianBlur",
+    "feImage",
+    "feMerge",
+    "feMergeNode",
+    "feMorphology",
+    "feOffset",
+    "fePointLight",
+    "feSpecularLighting",
+    "feSpotLight",
+    "feTile",
+    "feTurbulence",
+    "filter",
+    "metadata",
+    "title",
+    "desc",
+    "switch",
+    "view",
+  ]);
 
   constructor(private root: HTMLElement) {
     this.tree = new VNode(root, (old, nw) => {
@@ -50,7 +109,7 @@ export class OSC {
 
       const { domNode, vnode } = this.buildDOM(
         jsx,
-        targetVNode.parent || this.tree
+        targetVNode.parent || this.tree,
       );
 
       targetVNode.attach(domNode);
@@ -66,7 +125,7 @@ export class OSC {
 
   private buildDOM(
     jsx: JSX.Element | JSX.Element[],
-    vparent: VNode
+    vparent: VNode,
   ): BuildResult {
     if (jsx == null) {
       return { domNode: document.createDocumentFragment() };
@@ -94,7 +153,7 @@ export class OSC {
 
     console.error("Unsupported node:", jsx);
     throw new Error(
-      `Unsupported node type: ${typeof jsx}, $typeof: ${String(jsx.$$typeof)}`
+      `Unsupported node type: ${typeof jsx}, $typeof: ${String(jsx.$$typeof)}`,
     );
   }
 
@@ -204,9 +263,18 @@ export class OSC {
     return { domNode: fragment };
   }
 
+  private isSVGTag(tag: string): boolean {
+    return OSC.SVG_TAGS.has(tag);
+  }
+
   private buildIntrinsicElement(jsx: JSX.Element, parent: VNode): BuildResult {
     const tag = jsx.type;
-    const dom = document.createElement(tag);
+    const isSVG = this.isSVGTag(tag);
+
+    // Create element with proper namespace for SVG
+    const dom = isSVG
+      ? document.createElementNS(OSC.SVG_NAMESPACE, tag)
+      : document.createElement(tag);
 
     const vnode = new VNode(dom, (old, nw) => {
       if (old.parentNode) {
@@ -221,7 +289,7 @@ export class OSC {
     }
 
     if (jsx.props) {
-      this.buildAttributes(jsx.props, dom, vnode);
+      this.buildAttributes(jsx.props, dom, vnode, isSVG);
     }
 
     if (jsx.props?.children != null) {
@@ -234,8 +302,9 @@ export class OSC {
 
   private buildAttributes(
     props: Record<string, any>,
-    dom: HTMLElement,
-    vnode: VNode
+    dom: Element,
+    vnode: VNode,
+    isSVG: boolean = false,
   ): void {
     for (const [key, value] of Object.entries(props)) {
       if (key === "children" || value == null) {
@@ -245,16 +314,30 @@ export class OSC {
       const attrKey = this.normalizeAttributeKey(key);
 
       if (attrKey === "style" && typeof value === "object") {
-        this.applyStyles(value, dom);
+        this.applyStyles(value, dom as HTMLElement);
         continue;
       }
 
       if (typeof value === "boolean") {
-        this.setBooleanAttribute(attrKey, value, dom);
+        this.setBooleanAttribute(attrKey, value, dom, isSVG);
         continue;
       }
 
-      dom.setAttribute(attrKey, String(value));
+      // For SVG elements, use setAttributeNS for certain attributes
+      if (isSVG) {
+        this.setSVGAttribute(attrKey, String(value), dom);
+      } else {
+        dom.setAttribute(attrKey, String(value));
+      }
+    }
+  }
+
+  private setSVGAttribute(key: string, value: string, dom: Element): void {
+    // SVG href attributes need the xlink namespace
+    if (key === "href" || key === "xlink:href") {
+      dom.setAttributeNS("http://www.w3.org/1999/xlink", "href", value);
+    } else {
+      dom.setAttribute(key, value);
     }
   }
 
@@ -277,7 +360,8 @@ export class OSC {
   private setBooleanAttribute(
     key: string,
     value: boolean,
-    dom: HTMLElement
+    dom: Element,
+    isSVG: boolean = false,
   ): void {
     if (value) {
       dom.setAttribute(key, "");
@@ -290,7 +374,7 @@ export class OSC {
     path: string,
     name: string,
     props: Record<string, any>,
-    container: HTMLElement
+    container: HTMLElement,
   ): Promise<void> {
     try {
       const module = await import(path);
