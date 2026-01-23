@@ -1,0 +1,22 @@
+{
+  "name": "@kithinji/express",
+  "version": "1.0.1",
+  "type": "module",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js --watch",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/multer": "^2.0.0",
+    "@types/node": "^25.0.3",
+    "esbuild": "^0.27.2",
+    "typescript": "^5.9.3"
+  },
+  "main": "dist/index.mjs",
+  "types": "./dist/types/index.d.ts",
+  "dependencies": {
+    "@kithinji/orca": "workspace:*",
+    "multer": "^2.0.2"
+  }
+}

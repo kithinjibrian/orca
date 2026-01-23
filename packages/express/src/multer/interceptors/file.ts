@@ -1,0 +1,53 @@
+import {
+  CallHandler,
+  Constructor,
+  ExecutionContext,
+  Observable,
+  OrcaInterceptor,
+  mixin,
+} from "@kithinji/orca";
+import multer from "multer";
+import { MulterOptions } from "../types/options";
+
+type MulterInstance = any;
+
+export function FileInterceptor(
+  fieldName: string,
+  localOptions?: MulterOptions,
+): Constructor<OrcaInterceptor> {
+  class MixinInterceptor implements OrcaInterceptor {
+    protected multer: MulterInstance;
+
+    constructor() {
+      this.multer = (multer as any)({
+        ...localOptions,
+      });
+    }
+
+    async intercept(
+      context: ExecutionContext,
+      next: CallHandler<any>,
+    ): Promise<Observable<any>> {
+      const ctx = context.switchToHttp();
+
+      await new Promise<void>((resolve, reject) =>
+        this.multer.single(fieldName)(
+          ctx.getRequest(),
+          ctx.getResponse(),
+          (err: any) => {
+            if (err) {
+              return reject(err);
+            }
+            resolve();
+          },
+        ),
+      );
+
+      return next.handle();
+    }
+  }
+
+  let Interceptor = mixin(MixinInterceptor);
+
+  return Interceptor;
+}

@@ -22,6 +22,8 @@ export const EXPRESS_ADAPTER_HOST = Symbol("orca:express");
 export const SIGNATURE_METADATA_KEY = Symbol("orca:signature:schemas");
 export const SSE_ROUTE = Symbol("orca:sse:route");
 export const EVENT_HANDLER = Symbol("orca:event:handler");
+export const INTERCEPTORS_KEY = Symbol("interceptors");
+export const GUARDS_KEY = Symbol("guards");
 
 // over the wire symbols
 export const ERROR_ELEMENT = Symbol.for("orca:error");

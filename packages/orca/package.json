@@ -1,6 +1,6 @@
 {
   "name": "@kithinji/orca",
-  "version": "1.0.27",
+  "version": "1.0.28",
   "description": "A fullstack web framework for Node.js and browser environments",
   "types": "./dist/types/index.d.ts",
   "exports": {
@@ -60,6 +60,7 @@
     "reflect-metadata": "^0.2.2",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
+    "uid": "^2.0.2",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

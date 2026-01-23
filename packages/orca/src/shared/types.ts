@@ -1,3 +1,6 @@
+import { Request, Response } from "express";
+import { Observable } from "./observable";
+
 export type Constructor<T = any> = new (...args: any[]) => T;
 
 export type Token<T> = Constructor<T> | string | symbol;
@@ -67,7 +70,7 @@ export enum HttpMethod {
 export type MethodDecorator = <T>(
   target: Object,
   propertyKey: string | symbol,
-  descriptor: TypedPropertyDescriptor<T>
+  descriptor: TypedPropertyDescriptor<T>,
 ) => void | TypedPropertyDescriptor<T>;
 
 export interface Signal<T> {
@@ -103,3 +106,33 @@ export interface Message {
 }
 
 export type MessageHandler = (data: any) => void | Promise<void>;
+
+export interface ExecutionContext {
+  getClass(): Constructor;
+  getHandler(): Function;
+  getArgs(): any[];
+  switchToHttp(): HttpContext;
+}
+
+export interface HttpContext {
+  getRequest(): Request;
+  getResponse(): Response;
+  getNext?(): Function;
+}
+
+export interface CanActivate {
+  canActivate(
+    context: ExecutionContext,
+  ): boolean | Promise<boolean> | Observable<boolean>;
+}
+
+export interface CallHandler<T = any> {
+  handle(): Observable<T>;
+}
+
+export interface OrcaInterceptor<T = any, R = any> {
+  intercept(
+    context: ExecutionContext,
+    next: CallHandler<T>,
+  ): Observable<R> | Promise<Observable<R>>;
+}

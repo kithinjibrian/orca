@@ -1,3 +1,4 @@
+import { uid } from "uid";
 import { store } from "./store";
 import {
   BOOTSTRAP,
@@ -11,10 +12,12 @@ import {
   DECLARATIONS_KEY,
   EVENT_HANDLER,
   EXPORTS_KEY,
+  GUARDS_KEY,
   HTTP_METHOD_KEY,
   IMPORTS_KEY,
   INJECT_TOKENS_KEY,
   INJECTABLE,
+  INTERCEPTORS_KEY,
   PARAMS_META_KEY,
   PATH_KEY,
   PROVIDERS_KEY,
@@ -23,6 +26,7 @@ import {
 } from "./symbols";
 
 import {
+  CanActivate,
   ComponentParams,
   Constructor,
   ControllerParams,
@@ -31,6 +35,7 @@ import {
   InjectedToken,
   InjectParams,
   ModuleParams,
+  OrcaInterceptor,
   Token,
   ValidatableSchema,
 } from "./types";
@@ -51,6 +56,14 @@ export function Injectable() {
     Reflect.defineMetadata(INJECTABLE, true, target);
     return target;
   };
+}
+
+export function mixin<T>(mixinClass: Constructor<T>) {
+  Object.defineProperty(mixinClass, "name", {
+    value: uid(21),
+  });
+  Injectable()(mixinClass);
+  return mixinClass;
 }
 
 export function Component(params: ComponentParams = {}) {
@@ -82,7 +95,7 @@ export function Inject(token: Token<any>, params: InjectParams = {}) {
   return function (
     target: any,
     _propertyKey: string | symbol | undefined,
-    parameterIndex: number
+    parameterIndex: number,
   ) {
     const existingTokens: Map<
       number,
@@ -138,12 +151,12 @@ export function Query(key?: string) {
 
 function getRouteDecorator(
   httpMethod: HttpMethod,
-  path: string
+  path: string,
 ): MethodDecorator {
   return function (
     target: Object,
     key: string | symbol,
-    descriptor: PropertyDescriptor
+    descriptor: PropertyDescriptor,
   ) {
     Reflect.defineMetadata(HTTP_METHOD_KEY, httpMethod, target, key);
     Reflect.defineMetadata(PATH_KEY, path, target, key);
@@ -162,7 +175,7 @@ export function Sse(path?: string) {
   return function (
     target: any,
     propertyKey: string | symbol,
-    descriptor: PropertyDescriptor
+    descriptor: PropertyDescriptor,
   ) {
     Reflect.defineMetadata(SSE_ROUTE, true, target, propertyKey);
     Reflect.defineMetadata(PATH_KEY, path, target, propertyKey);
@@ -170,7 +183,7 @@ export function Sse(path?: string) {
       HTTP_METHOD_KEY,
       HttpMethod.GET,
       target,
-      propertyKey
+      propertyKey,
     );
   };
 }
@@ -179,7 +192,7 @@ export function Subscribe(pattern: string) {
   return function (
     target: any,
     propertyKey: string | symbol,
-    descriptor: PropertyDescriptor
+    descriptor: PropertyDescriptor,
   ) {
     Reflect.defineMetadata(EVENT_HANDLER, pattern, target, propertyKey);
   };
@@ -189,13 +202,13 @@ export function Signature(...schemas: ValidatableSchema[]) {
   return function (
     target: any,
     propertyKey: string | symbol,
-    descriptor: PropertyDescriptor
+    descriptor: PropertyDescriptor,
   ) {
     Reflect.defineMetadata(
       SIGNATURE_METADATA_KEY,
       schemas,
       target,
-      propertyKey
+      propertyKey,
     );
 
     const originalMethod = descriptor.value;
@@ -210,21 +223,21 @@ export function Signature(...schemas: ValidatableSchema[]) {
 
 export function getSignatureMetadata(
   target: any,
-  propertyKey: string | symbol
+  propertyKey: string | symbol,
 ): any[] | undefined {
   return Reflect.getMetadata(SIGNATURE_METADATA_KEY, target, propertyKey);
 }
 
 export function hasSignature(
   target: any,
-  propertyKey: string | symbol
+  propertyKey: string | symbol,
 ): boolean {
   return Reflect.hasMetadata(SIGNATURE_METADATA_KEY, target, propertyKey);
 }
 
 export function parseSignatureSchemas(
   schemas: any[],
-  paramCount: number
+  paramCount: number,
 ): {
   paramSchemas: any[];
   returnSchema?: any;
@@ -245,9 +258,84 @@ export function parseSignatureSchemas(
 
   if (paramSchemas.length !== paramCount) {
     throw new Error(
-      `@Signature decorator has ${paramSchemas.length} parameter schemas but method has ${paramCount} parameters. They must match.`
+      `@Signature decorator has ${paramSchemas.length} parameter schemas but method has ${paramCount} parameters. They must match.`,
     );
   }
 
   return { paramSchemas, returnSchema };
+}
+
+export function UseInterceptors(
+  ...interceptors: (Constructor<OrcaInterceptor> | OrcaInterceptor)[]
+) {
+  return function (
+    target: any,
+    propertyKey?: string | symbol,
+    descriptor?: PropertyDescriptor,
+  ) {
+    if (propertyKey && descriptor) {
+      const existing =
+        Reflect.getMetadata(INTERCEPTORS_KEY, target, propertyKey) || [];
+      Reflect.defineMetadata(
+        INTERCEPTORS_KEY,
+        [...existing, ...interceptors],
+        target,
+        propertyKey,
+      );
+    } else {
+      const existing = Reflect.getMetadata(INTERCEPTORS_KEY, target) || [];
+      Reflect.defineMetadata(
+        INTERCEPTORS_KEY,
+        [...existing, ...interceptors],
+        target,
+      );
+    }
+  };
+}
+
+export function getInterceptors(
+  target: any,
+  propertyKey: string | symbol,
+): Constructor<OrcaInterceptor>[] {
+  const classInterceptors =
+    Reflect.getMetadata(INTERCEPTORS_KEY, target.constructor) || [];
+  const methodInterceptors =
+    Reflect.getMetadata(INTERCEPTORS_KEY, target, propertyKey) || [];
+
+  return [...classInterceptors, ...methodInterceptors];
+}
+
+export function UseGuards(
+  ...guards: (Constructor<CanActivate> | CanActivate)[]
+) {
+  return function (
+    target: any,
+    propertyKey?: string | symbol,
+    descriptor?: PropertyDescriptor,
+  ) {
+    if (propertyKey && descriptor) {
+      const existing =
+        Reflect.getMetadata(GUARDS_KEY, target, propertyKey) || [];
+      Reflect.defineMetadata(
+        GUARDS_KEY,
+        [...existing, ...guards],
+        target,
+        propertyKey,
+      );
+    } else {
+      const existing = Reflect.getMetadata(GUARDS_KEY, target) || [];
+      Reflect.defineMetadata(GUARDS_KEY, [...existing, ...guards], target);
+    }
+  };
+}
+
+export function getGuards(
+  target: any,
+  propertyKey: string | symbol,
+): (Constructor<CanActivate> | CanActivate)[] {
+  const classGuards = Reflect.getMetadata(GUARDS_KEY, target.constructor) || [];
+  const methodGuards =
+    Reflect.getMetadata(GUARDS_KEY, target, propertyKey) || [];
+
+  return [...classGuards, ...methodGuards];
 }

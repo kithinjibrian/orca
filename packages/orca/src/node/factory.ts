@@ -29,6 +29,13 @@ import {
   EVENT_HANDLER,
   COMPONENT_ROUTE,
   ORCA_ELEMENT_TYPE,
+  ExecutionContext,
+  HttpContext,
+  CallHandler,
+  OrcaInterceptor,
+  getInterceptors,
+  getGuards,
+  CanActivate,
 } from "@/shared";
 import { Actor } from "./modules";
 
@@ -79,7 +86,7 @@ class RouteMatcherService {
 
   private static matchPathSegments(
     patternSegments: string[],
-    urlSegments: string[]
+    urlSegments: string[],
   ): Record<string, string> | null {
     if (patternSegments.length !== urlSegments.length) return null;
 
@@ -102,7 +109,7 @@ class RouteMatcherService {
   private static extractQueryParams(
     queryPattern: string,
     urlParams: URLSearchParams,
-    routePattern: string
+    routePattern: string,
   ): Record<string, string> {
     const props: Record<string, string> = {};
     const queryParams = queryPattern.split("&").filter(Boolean);
@@ -115,7 +122,7 @@ class RouteMatcherService {
       if (paramValue === null) {
         if (!isOptional) {
           throw new Error(
-            `Missing required query parameter "${paramName}" for route "${routePattern}"`
+            `Missing required query parameter "${paramName}" for route "${routePattern}"`,
           );
         }
         continue;
@@ -158,26 +165,187 @@ class RouteMatcherService {
   }
 }
 
+class ExecutionContextImpl implements ExecutionContext {
+  constructor(
+    private readonly classRef: Constructor,
+    private readonly handler: Function,
+    private readonly args: any[],
+    private readonly request: Request,
+    private readonly response: Response,
+  ) {}
+
+  getClass(): Constructor {
+    return this.classRef;
+  }
+
+  getHandler(): Function {
+    return this.handler;
+  }
+
+  getArgs(): any[] {
+    return this.args;
+  }
+
+  switchToHttp(): HttpContext {
+    return {
+      getRequest: () => this.request,
+      getResponse: () => this.response,
+    };
+  }
+}
+
+class GuardPipeline {
+  static async execute(
+    guards: (Constructor<CanActivate> | CanActivate)[],
+    context: ExecutionContext,
+    injector: any,
+  ): Promise<boolean> {
+    if (guards.length === 0) {
+      return true;
+    }
+
+    for (const guardOrClass of guards) {
+      let guardInstance: CanActivate;
+
+      if (typeof guardOrClass === "function") {
+        guardInstance = injector.resolve(guardOrClass);
+      } else {
+        guardInstance = guardOrClass;
+      }
+
+      const result = guardInstance.canActivate(context);
+
+      if (result && typeof (result as any).subscribe === "function") {
+        const canActivate = await new Promise<boolean>((resolve, reject) => {
+          (result as Observable<boolean>).subscribe({
+            next: (value) => resolve(value),
+            error: (err) => reject(err),
+            complete: () => {},
+          });
+        });
+
+        if (!canActivate) {
+          return false;
+        }
+      } else if (result instanceof Promise) {
+        const canActivate = await result;
+        if (!canActivate) {
+          return false;
+        }
+      } else {
+        if (!result) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+}
+
+class InterceptorPipeline {
+  static async execute<T = any>(
+    interceptors: (Constructor<OrcaInterceptor> | OrcaInterceptor)[],
+    context: ExecutionContext,
+    handler: () => Promise<T>,
+    injector: any,
+  ): Promise<T> {
+    if (interceptors.length === 0) {
+      return handler();
+    }
+
+    let index = 0;
+
+    const createCallHandler = (): CallHandler<T> => {
+      const currentIndex = index++;
+
+      return {
+        handle: (): Observable<T> => {
+          if (currentIndex >= interceptors.length) {
+            return new Observable<T>((observer) => {
+              handler()
+                .then((result) => {
+                  observer.next(result);
+                  observer.complete?.();
+                })
+                .catch((error) => {
+                  observer.error?.(error);
+                });
+            });
+          }
+
+          const interceptorOrClass = interceptors[currentIndex];
+
+          let interceptorInstance: OrcaInterceptor;
+          if (typeof interceptorOrClass === "function") {
+            interceptorInstance = injector.resolve(interceptorOrClass);
+          } else {
+            interceptorInstance = interceptorOrClass;
+          }
+
+          const result = interceptorInstance.intercept(
+            context,
+            createCallHandler(),
+          );
+
+          if (result instanceof Promise) {
+            return new Observable<T>((observer) => {
+              result
+                .then((observable) => {
+                  observable.subscribe({
+                    next: (value: T) => observer.next(value),
+                    error: (err: any) => observer.error?.(err),
+                    complete: () => observer.complete?.(),
+                  });
+                })
+                .catch((error) => observer.error?.(error));
+            });
+          }
+
+          return result as Observable<T>;
+        },
+      };
+    };
+
+    return new Promise<T>((resolve, reject) => {
+      const observable = createCallHandler().handle();
+
+      let result: T;
+      observable.subscribe({
+        next: (value) => {
+          result = value;
+        },
+        error: (error) => {
+          reject(error);
+        },
+        complete: () => {
+          resolve(result);
+        },
+      });
+    });
+  }
+}
+
 class ControllerRegistrationService {
   constructor(
     private readonly injector: Injector,
-    private readonly app: Express
+    private readonly app: Express,
   ) {}
 
   private registerEventHandlers(
     CtrlCls: Constructor,
     instance: any,
-    actor: Actor
+    actor: Actor,
   ): void {
     const eventHandlers = Reflect.ownKeys(CtrlCls.prototype).filter((key) =>
-      Reflect.hasOwnMetadata(EVENT_HANDLER, CtrlCls.prototype, key)
+      Reflect.hasOwnMetadata(EVENT_HANDLER, CtrlCls.prototype, key),
     );
 
     for (const methodKey of eventHandlers) {
       const eventName = Reflect.getMetadata(
         EVENT_HANDLER,
         CtrlCls.prototype,
-        methodKey
+        methodKey,
       ) as string;
 
       const handler = instance[methodKey];
@@ -188,7 +356,7 @@ class ControllerRegistrationService {
   private buildMethodArgs(
     req: Request,
     paramsMeta: Record<number, ParamMeta>,
-    designParams: any[]
+    designParams: any[],
   ): any[] {
     const args = Array(designParams.length).fill(undefined);
 
@@ -219,7 +387,7 @@ class ControllerRegistrationService {
   private async handleMethodResult(
     result: any,
     res: Response,
-    isSSE: boolean
+    isSSE: boolean,
   ): Promise<void> {
     if (res.headersSent) return;
 
@@ -246,10 +414,10 @@ class ControllerRegistrationService {
   private registerHttpMethods(
     CtrlCls: Constructor,
     instance: any,
-    prefix: string
+    prefix: string,
   ): void {
     const methods = Reflect.ownKeys(CtrlCls.prototype).filter((key) =>
-      Reflect.hasOwnMetadata(HTTP_METHOD_KEY, CtrlCls.prototype, key)
+      Reflect.hasOwnMetadata(HTTP_METHOD_KEY, CtrlCls.prototype, key),
     );
 
     for (const methodKey of methods) {
@@ -261,12 +429,12 @@ class ControllerRegistrationService {
     CtrlCls: Constructor,
     instance: any,
     methodKey: string | symbol,
-    prefix: string
+    prefix: string,
   ): void {
     const httpMethod = Reflect.getMetadata(
       HTTP_METHOD_KEY,
       CtrlCls.prototype,
-      methodKey
+      methodKey,
     ) as "get" | "post" | "put" | "delete" | "patch";
 
     const routePath: string =
@@ -276,10 +444,13 @@ class ControllerRegistrationService {
     const isSSE = Reflect.getMetadata(
       SSE_ROUTE,
       CtrlCls.prototype,
-      methodKey
+      methodKey,
     ) as boolean;
     const paramsMeta: Record<number, ParamMeta> =
       Reflect.getMetadata(PARAMS_META_KEY, CtrlCls.prototype, methodKey) ?? {};
+
+    const guards = getGuards(CtrlCls.prototype, methodKey);
+    const interceptors = getInterceptors(CtrlCls.prototype, methodKey);
 
     this.app[httpMethod](fullPath, async (req, res) => {
       try {
@@ -293,11 +464,40 @@ class ControllerRegistrationService {
           Reflect.getMetadata(
             DESIGN_PARAMTYPES,
             CtrlCls.prototype,
-            methodKey
+            methodKey,
           ) ?? [];
 
         const args = this.buildMethodArgs(req, paramsMeta, designParams);
-        const result = await instance[methodKey](...args);
+
+        const context = new ExecutionContextImpl(
+          CtrlCls,
+          instance[methodKey],
+          args,
+          req,
+          res,
+        );
+
+        const canActivate = await GuardPipeline.execute(
+          guards,
+          context,
+          this.injector,
+        );
+
+        if (!canActivate) {
+          res.status(403).json({
+            statusCode: 403,
+            message: "Forbidden",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        const result = await InterceptorPipeline.execute(
+          interceptors,
+          context,
+          async () => instance[methodKey](...args),
+          this.injector,
+        );
 
         await this.handleMethodResult(result, res, isSSE);
       } catch (err: any) {
@@ -333,7 +533,7 @@ class ComponentResolver {
 
   public resolve(
     componentName: string | undefined,
-    body: any
+    body: any,
   ): {
     component: Constructor | null;
     props: Record<string, any>;
@@ -373,7 +573,7 @@ class ComponentResolver {
           component: null,
           props: {},
           error: createErrorElement(
-            `No component found for route '${componentName}'`
+            `No component found for route '${componentName}'`,
           ),
         };
       }
@@ -408,14 +608,14 @@ class ComponentResolver {
 class OscRouteHandler {
   constructor(
     private readonly injector: Injector,
-    private readonly componentResolver: ComponentResolver
+    private readonly componentResolver: ComponentResolver,
   ) {}
 
   private async streamComponent(
     renderer: StreamRenderer,
     component: Constructor,
     props: Record<string, any>,
-    res: Response
+    res: Response,
   ): Promise<void> {
     const stream = renderer.render(jsx(component, props));
     for await (const chunk of stream) {
@@ -426,7 +626,7 @@ class OscRouteHandler {
   private async streamError(
     renderer: StreamRenderer,
     errorElement: any,
-    res: Response
+    res: Response,
   ): Promise<void> {
     try {
       const stream = renderer.render(errorElement);
@@ -444,8 +644,8 @@ class OscRouteHandler {
             props: { children: "Critical error occurred" },
             key: null,
           },
-          symbolValueReplacer
-        ) + "\n"
+          symbolValueReplacer,
+        ) + "\n",
       );
     }
   }
@@ -457,7 +657,7 @@ class OscRouteHandler {
     try {
       const { component, props, error } = this.componentResolver.resolve(
         componentName,
-        req.body
+        req.body,
       );
 
       if (error) {
@@ -470,7 +670,7 @@ class OscRouteHandler {
     } catch (err) {
       console.error("Streaming error:", err);
       const errorElement = createErrorElement(
-        err instanceof Error ? err.message : "Unknown error occurred"
+        err instanceof Error ? err.message : "Unknown error occurred",
       );
       await this.streamError(renderer, errorElement, res);
     }
@@ -521,7 +721,7 @@ export class NodeFactory {
   private static createRootInjector(
     appNode: any,
     app: Express,
-    rootModule: Constructor
+    rootModule: Constructor,
   ): Injector {
     const allProviders = collectAllProvidersFromNode(appNode);
     const rootControllers = [
@@ -546,11 +746,11 @@ export class NodeFactory {
   private static registerControllers(
     appNode: any,
     injector: Injector,
-    app: Express
+    app: Express,
   ): void {
     const registrationService = new ControllerRegistrationService(
       injector,
-      app
+      app,
     );
     const rootControllers = [
       ...store.get<Set<Constructor>>("root_controllers")!,
@@ -562,7 +762,7 @@ export class NodeFactory {
       const providers = [...node.getProviders().values()];
 
       const controllers = providers.filter((provider) =>
-        Reflect.getMetadata(CONTROLLER, provider.provide)
+        Reflect.getMetadata(CONTROLLER, provider.provide),
       );
 
       controllers.forEach((c) => registrationService.register(c.useClass!));
@@ -576,7 +776,7 @@ export class NodeFactory {
   private static setupOscRoute(
     app: Express,
     injector: Injector,
-    rootModule: Constructor
+    rootModule: Constructor,
   ): void {
     const componentResolver = new ComponentResolver(rootModule);
     const oscHandler = new OscRouteHandler(injector, componentResolver);
