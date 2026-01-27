@@ -26,17 +26,17 @@ async function build() {
     conditions: ["node"],
   });
 
-  await esbuild.build({
-    bundle: true,
-    sourcemap: true,
-    minify: false,
-    entryPoints: ["src/index.browser.ts"],
-    platform: "browser",
-    format: "esm",
-    outfile: "dist/browser/index.mjs",
-    external: [],
-    conditions: ["browser", "module", "default"],
-  });
+  // await esbuild.build({
+  //   bundle: true,
+  //   sourcemap: true,
+  //   minify: false,
+  //   entryPoints: ["src/index.browser.ts"],
+  //   platform: "browser",
+  //   format: "esm",
+  //   outfile: "dist/browser/index.mjs",
+  //   external: [],
+  //   conditions: ["browser", "module", "default"],
+  // });
 
   execSync("npx tsc --emitDeclarationOnly --declaration --outDir dist/types", {
     stdio: "inherit",

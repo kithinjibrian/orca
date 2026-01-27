@@ -29,11 +29,10 @@ import { dockerize } from "./docker";
 import { deploy } from "./deploy";
 import chalk from "chalk";
 import { compileFiles } from "./compile";
-import { fileURLToPath } from "url";
 
 const program = new Command();
 
-program.name("pod").description("Pod cli tool").version("1.0.43");
+program.name("pod").description("Pod cli tool").version("1.0.44");
 
 program
   .command("new <name> [type]")

@@ -4,7 +4,7 @@ import { Component, Navigate } from "@kithinji/orca";
 import { LoginPage } from "../login.page";
 
 @Component({
-  deps: [LoginPage],
+  inject: [LoginPage],
 })
 export class AppList {
   constructor(private readonly navigate: Navigate) {}

@@ -8,13 +8,11 @@ export * from "./shared/symbols";
 export * from "./shared/decorators";
 export * from "./shared/module";
 export * from "./shared/jsx";
-export * from "./shared/observable";
 export * from "./shared/signal";
 export * from "./shared/json";
 export * from "./shared/component";
 export * from "./shared/module_libs";
 export * from "./shared/dom";
-export * from "./shared/macros";
 
 import * as node from "./node";
 export { node };

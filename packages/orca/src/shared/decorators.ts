@@ -30,6 +30,7 @@ import {
   ComponentParams,
   Constructor,
   ControllerParams,
+  CustomDecorator,
   HandlerParamType,
   HttpMethod,
   InjectedToken,
@@ -86,7 +87,7 @@ export function Component(params: ComponentParams = {}) {
 
     Reflect.defineMetadata(COMPONENT, true, target);
     Reflect.defineMetadata(COMPONENT_PROVIDERS, params.providers || [], target);
-    Reflect.defineMetadata(COMPONENT_DEPS, params.deps || [], target);
+    Reflect.defineMetadata(COMPONENT_DEPS, params.inject || [], target);
     return target;
   };
 }
@@ -149,6 +150,22 @@ export function Query(key?: string) {
   return getHandlerParamDecorator(HandlerParamType.QUERY, key);
 }
 
+export function UploadedFile() {
+  return getHandlerParamDecorator(HandlerParamType.FILE);
+}
+
+export function UploadedFiles() {
+  return getHandlerParamDecorator(HandlerParamType.FILES);
+}
+
+export function Req() {
+  return getHandlerParamDecorator(HandlerParamType.REQUEST);
+}
+
+export function Res() {
+  return getHandlerParamDecorator(HandlerParamType.RESPONSE);
+}
+
 function getRouteDecorator(
   httpMethod: HttpMethod,
   path: string,
@@ -186,6 +203,14 @@ export function Sse(path?: string) {
       propertyKey,
     );
   };
+}
+
+export function Shared() {
+  return function (
+    target: any,
+    _propertyKey: string | symbol | undefined,
+    parameterIndex: number,
+  ) {};
 }
 
 export function Subscribe(pattern: string) {
@@ -338,4 +363,42 @@ export function getGuards(
     Reflect.getMetadata(GUARDS_KEY, target, propertyKey) || [];
 
   return [...classGuards, ...methodGuards];
+}
+
+export const SetMetadata = <K = string, V = any>(
+  metadataKey: K,
+  metadataValue: V,
+): CustomDecorator<K> => {
+  const decoratorFactory = (target: object, key?: any, descriptor?: any) => {
+    if (descriptor) {
+      Reflect.defineMetadata(metadataKey, metadataValue, descriptor.value);
+      return descriptor;
+    }
+    Reflect.defineMetadata(metadataKey, metadataValue, target);
+    return target;
+  };
+  decoratorFactory.KEY = metadataKey;
+  return decoratorFactory;
+};
+
+export function applyDecorators(
+  ...decorators: Array<ClassDecorator | MethodDecorator | PropertyDecorator>
+) {
+  return <TFunction extends Function, Y>(
+    target: TFunction | object,
+    propertyKey?: string | symbol,
+    descriptor?: TypedPropertyDescriptor<Y>,
+  ) => {
+    for (const decorator of decorators) {
+      if (target instanceof Function && !descriptor) {
+        (decorator as ClassDecorator)(target);
+        continue;
+      }
+      (decorator as MethodDecorator | PropertyDecorator)(
+        target,
+        propertyKey!,
+        descriptor!,
+      );
+    }
+  };
 }

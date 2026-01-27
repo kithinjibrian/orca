@@ -1,21 +1,24 @@
-import {
-  BehaviorSubject,
-  HttpClient,
-  Inject,
-  JSX,
-  Observable,
-  symbolValueReviver,
-} from "@/shared";
+import { HttpClient, Inject, JSX, symbolValueReviver } from "@/shared";
+import { BehaviorSubject, Observable } from "rxjs";
 
 type Page = Node | JSX.Element | Observable<JSX.Element>;
 
+interface RouteEntry {
+  content: Page;
+  isOverlay: boolean;
+  route?: string;
+}
+
 interface StoredState {
-  routes: string[];
+  routes: Array<{
+    path: string;
+    isOverlay: boolean;
+  }>;
   cursor: number;
 }
 
 export class Navigate {
-  public pages: BehaviorSubject<Page[]>;
+  public pages: BehaviorSubject<RouteEntry[]>;
   public cursor: number = 0;
   private readonly STORAGE_KEY = "navigate_stack";
 
@@ -23,38 +26,58 @@ export class Navigate {
     const savedState = this.loadFromStorage();
     const historyCursor = history.state?.cursor;
 
-    if (savedState && historyCursor !== undefined) {
+    if (
+      savedState &&
+      historyCursor !== undefined &&
+      savedState.routes[historyCursor]
+    ) {
       this.cursor = historyCursor;
-      const restoredPages: Page[] = savedState.routes.map(() => null as any);
 
-      const currentRoute = window.location.pathname + window.location.search;
-      const stream = this.createStreamForRoute(currentRoute);
-      restoredPages[this.cursor] = stream;
+      const restoredPages: RouteEntry[] = savedState.routes.map(
+        (routeData, idx) => ({
+          content:
+            idx === this.cursor
+              ? this.createStreamForRoute(routeData.path)
+              : (null as any),
+          isOverlay: routeData.isOverlay,
+          route: routeData.path,
+        }),
+      );
 
-      this.pages = new BehaviorSubject<Page[]>(restoredPages);
+      this.pages = new BehaviorSubject<RouteEntry[]>(restoredPages);
     } else {
-      const initialStream = this.createStreamForCurrentUrl();
-      this.pages = new BehaviorSubject<Page[]>([initialStream]);
+      const initialPath = window.location.pathname + window.location.search;
+      const initialStream = this.createStreamForRoute(initialPath);
+
       this.cursor = 0;
-      history.replaceState({ cursor: 0 }, "");
+      this.pages = new BehaviorSubject<RouteEntry[]>([
+        {
+          content: initialStream,
+          isOverlay: false,
+          route: initialPath,
+        },
+      ]);
+
+      history.replaceState({ cursor: 0 }, "", initialPath);
       this.saveToStorage();
     }
 
+    this.initListeners();
+  }
+
+  private initListeners(): void {
     window.addEventListener("popstate", (e) => {
       const newCursor = e.state?.cursor ?? 0;
-      this.cursor = newCursor;
+      const currentPages = [...this.pages.value];
 
-      const currentPages = [...(this.pages.$value || [])];
-
-      if (!currentPages[newCursor]) {
-        const savedState = this.loadFromStorage();
+      if (currentPages[newCursor] && !currentPages[newCursor].content) {
         const route =
-          savedState?.routes[newCursor] ||
+          currentPages[newCursor].route ||
           window.location.pathname + window.location.search;
-        const stream = this.createStreamForRoute(route);
-        currentPages[newCursor] = stream;
+        currentPages[newCursor].content = this.createStreamForRoute(route);
       }
 
+      this.cursor = newCursor;
       this.pages.next(currentPages);
     });
   }
@@ -70,23 +93,17 @@ export class Navigate {
 
   private saveToStorage(): void {
     try {
-      const currentPages = this.pages.$value || [];
-      const routes = currentPages.map((page, index) => {
-        if (page && typeof page === "object" && "__route" in page) {
-          return (page as any).__route as string;
-        }
-
-        const savedState = this.loadFromStorage();
-        return savedState?.routes[index] || "";
-      });
-
       const state: StoredState = {
-        routes,
+        routes: this.pages.value.map((p) => ({
+          path: p.route || "",
+          isOverlay: p.isOverlay,
+        })),
         cursor: this.cursor,
       };
-
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(state));
-    } catch {}
+    } catch (e) {
+      console.error("Navigation persistence failed", e);
+    }
   }
 
   private createStreamForRoute(route: string): Observable<JSX.Element> {
@@ -94,7 +111,8 @@ export class Navigate {
     let url = this.oscUrl;
 
     if (route && route !== "/") {
-      url = `${this.oscUrl}?c=${encodeURIComponent(route)}`;
+      const separator = url.includes("?") ? "&" : "?";
+      url = `${url}${separator}c=${encodeURIComponent(route)}`;
     }
 
     return http.post<JSX.Element>(url, {
@@ -103,21 +121,17 @@ export class Navigate {
     });
   }
 
-  private createStreamForCurrentUrl(): Observable<JSX.Element> {
-    const path = window.location.pathname;
-    const search = window.location.search;
-    const fullPath = search ? `${path}${search}` : path;
-    return this.createStreamForRoute(fullPath);
-  }
-
   public go(path: string): void {
     const stream = this.createStreamForRoute(path);
+
     (stream as any).__route = path;
-    this.push(stream);
+
+    this.push(stream, false);
   }
 
-  public push(item: Page): void {
-    const currentPages = this.pages.$value || [];
+  public push(item: Page, isOverlay: boolean = false): void {
+    const currentPages = this.pages.value || [];
+
     const newPages = currentPages.slice(0, this.cursor + 1);
 
     let route = "";
@@ -126,32 +140,46 @@ export class Navigate {
     }
 
     this.cursor++;
-    newPages.push(item);
-    history.pushState({ cursor: this.cursor }, "", route);
+    newPages.push({
+      content: item,
+      isOverlay,
+      route,
+    });
+
+    history.pushState({ cursor: this.cursor }, "", route || undefined);
     this.pages.next(newPages);
     this.saveToStorage();
   }
 
+  public pushOverlay(item: Page): void {
+    this.push(item, true);
+  }
+
+  public pop(): void {
+    if (this.canGoBack()) {
+      history.back();
+    }
+  }
+
   public replace(item: Page): void {
-    const currentPages = [...(this.pages.$value || [])];
-    currentPages[this.cursor] = item;
-    history.replaceState({ cursor: this.cursor }, "");
-    this.pages.next(currentPages);
-    this.saveToStorage();
+    const currentPages = [...(this.pages.value || [])];
+    if (currentPages[this.cursor]) {
+      currentPages[this.cursor].content = item;
+      this.pages.next(currentPages);
+      this.saveToStorage();
+    }
   }
 
   public resolveStream(index: number, element: Node): void {
-    const currentPages = [...(this.pages.$value || [])];
+    const currentPages = [...(this.pages.value || [])];
     if (index >= 0 && index < currentPages.length) {
-      currentPages[index] = element;
+      currentPages[index].content = element;
       this.pages.next(currentPages);
     }
   }
 
   public goBack(): void {
-    if (this.canGoBack()) {
-      history.back();
-    }
+    this.pop();
   }
 
   public goForward(): void {
@@ -165,19 +193,26 @@ export class Navigate {
   }
 
   public canGoForward(): boolean {
-    const currentPages = this.pages.$value || [];
-    return this.cursor < currentPages.length - 1;
+    return this.cursor < (this.pages.value?.length || 0) - 1;
   }
 
-  public getCurrentPage(): Page | undefined {
-    const currentPages = this.pages.$value || [];
-    return currentPages[this.cursor];
+  public getCurrentPage(): RouteEntry | undefined {
+    return this.pages.value[this.cursor];
   }
 
   public clear(): void {
     this.cursor = 0;
-    const initialStream = this.createStreamForCurrentUrl();
-    this.pages.next([initialStream]);
+    const initialPath = window.location.pathname + window.location.search;
+    const initialStream = this.createStreamForRoute(initialPath);
+
+    this.pages.next([
+      {
+        content: initialStream,
+        isOverlay: false,
+        route: initialPath,
+      },
+    ]);
+
     history.replaceState({ cursor: 0 }, "");
     this.saveToStorage();
   }

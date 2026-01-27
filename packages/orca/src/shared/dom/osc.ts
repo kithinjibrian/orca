@@ -419,7 +419,7 @@ export class OSC {
       const cleanProps = { ...props };
       delete cleanProps.__clientComponent;
 
-      const instance = injector.resolve(ComponentClass);
+      const instance = await injector.resolve(ComponentClass);
       instance.__injector = injector;
 
       const mergedProps = Object.create(

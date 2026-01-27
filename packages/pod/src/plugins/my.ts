@@ -33,7 +33,7 @@ async function swcTransform(
   source: string,
   pathStr: string,
   tsx: boolean = false,
-  react?: ReactConfig
+  react?: ReactConfig,
 ): Promise<OnLoadResult> {
   const resolveDir = path.dirname(pathStr);
 
@@ -86,12 +86,11 @@ function parseFileMetadata(source: string, path: string): FileMetadata {
 class ServerBuildTransformer {
   async transformPublicFile(
     source: string,
-    path: string
+    path: string,
   ): Promise<OnLoadResult> {
-    const controllerCode = generateController(path, source);
-
-    if (controllerCode) {
-      source = `${source}\n\n${controllerCode}\n`;
+    const result = generateController(path, source);
+    if (result) {
+      source = `${result.transformedServiceCode}\n\n${result.controllerCode}\n`;
     }
 
     return swcTransform(source, path);
@@ -100,7 +99,7 @@ class ServerBuildTransformer {
   async transformRegularTypeScript(
     source: string,
     path: string,
-    isPublic: boolean
+    isPublic: boolean,
   ): Promise<OnLoadResult> {
     if (isPublic) {
       return this.transformPublicFile(source, path);
@@ -110,7 +109,7 @@ class ServerBuildTransformer {
 
   async transformServerTsx(
     source: string,
-    path: string
+    path: string,
   ): Promise<OnLoadResult> {
     return swcTransform(source, path, true, {
       runtime: "automatic",
@@ -120,7 +119,7 @@ class ServerBuildTransformer {
 
   async transformClientTsxStub(
     source: string,
-    path: string
+    path: string,
   ): Promise<OnLoadResult> {
     const stubSource = generateServerStub(path, source);
 
@@ -129,7 +128,7 @@ class ServerBuildTransformer {
 
   async process(
     metadata: FileMetadata,
-    onClientFound: (path: string) => void
+    onClientFound: (path: string) => void,
   ): Promise<OnLoadResult> {
     const expandedSource = await expandMacros(metadata.source, metadata.path);
 
@@ -158,7 +157,7 @@ class ServerBuildTransformer {
 class ClientBuildTransformer {
   async transformClientTsx(
     source: string,
-    path: string
+    path: string,
   ): Promise<OnLoadResult> {
     const swcResult = await swcTransform(source, path, true, {
       runtime: "preserve",
@@ -175,7 +174,7 @@ class ClientBuildTransformer {
         },
         configFile: false,
         babelrc: false,
-      }
+      },
     );
 
     return {
@@ -188,7 +187,7 @@ class ClientBuildTransformer {
   async transformServerComponent(
     node: FileNode,
     source: string,
-    path: string
+    path: string,
   ): Promise<OnLoadResult> {
     const scSource = generateServerComponent(path, source);
     return swcTransform(scSource, path);
@@ -197,7 +196,7 @@ class ClientBuildTransformer {
   async transformPublicFileRpc(
     node: FileNode,
     source: string,
-    path: string
+    path: string,
   ): Promise<OnLoadResult> {
     const stubSource = generateRpcStub(path, source);
     return swcTransform(stubSource, path);
@@ -205,7 +204,7 @@ class ClientBuildTransformer {
 
   async transformSharedCode(
     source: string,
-    path: string
+    path: string,
   ): Promise<OnLoadResult> {
     return swcTransform(source, path);
   }
@@ -223,7 +222,7 @@ class ClientBuildTransformer {
         return this.transformServerComponent(node, source, path);
       } else {
         throw new Error(
-          `Unexpected directive "${directive}" for TSX file: ${path}`
+          `Unexpected directive "${directive}" for TSX file: ${path}`,
         );
       }
     }
@@ -262,7 +261,7 @@ export function useMyPlugin(options: MyPluginParams): Plugin {
 
           if (!options.graph) {
             throw new Error(
-              "Dependency graph is required for client build but was not provided"
+              "Dependency graph is required for client build but was not provided",
             );
           }
 
@@ -274,7 +273,7 @@ export function useMyPlugin(options: MyPluginParams): Plugin {
           }
 
           return clientTransformer.process(node, metadata);
-        }
+        },
       );
     },
   };

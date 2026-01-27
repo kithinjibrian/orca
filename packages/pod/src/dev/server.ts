@@ -43,7 +43,7 @@ export async function navigate(event, url) {
     const injector = getCurrentInjector();
     
     if (injector) {
-      const navigate = injector.resolve(Navigate);
+      const navigate = await injector.resolve(Navigate);
       navigate.go(url);
     } else {
       window.location.href = url;
@@ -120,7 +120,7 @@ class HotReloadManager {
     });
 
     this.logger.info(
-      `Hot reload server listening on ws://localhost:${this.port}`,
+      `Hot reloads servers listening on ws://localhost:${this.port}`,
     );
   }
 
@@ -387,6 +387,7 @@ export async function startDevServer(): Promise<void> {
 
   if (hasClientFiles) {
     await copyAndProcessHtml(HOT_RELOAD_PORT, config.htmlPreprocessor, logger);
+
     hotReloadManager!.start();
   }
 
@@ -412,7 +413,6 @@ export async function startDevServer(): Promise<void> {
         clientCtx = null;
       }
 
-      // Add pending files to the main set
       pendingClientFiles.forEach((file) => clientFiles.add(file));
       pendingClientFiles.clear();
 

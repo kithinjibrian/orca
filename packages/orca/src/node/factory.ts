@@ -25,7 +25,6 @@ import {
   ProviderNormalizer,
   store,
   SSE_ROUTE,
-  Observable,
   EVENT_HANDLER,
   COMPONENT_ROUTE,
   ORCA_ELEMENT_TYPE,
@@ -36,8 +35,13 @@ import {
   getInterceptors,
   getGuards,
   CanActivate,
+  INTERCEPTORS_KEY,
+  GUARDS_KEY,
+  Provider,
+  RequestContext,
 } from "@/shared";
 import { Actor } from "./modules";
+import { isObservable, Observable } from "rxjs";
 
 interface RouteMatch {
   component: Constructor;
@@ -169,7 +173,6 @@ class ExecutionContextImpl implements ExecutionContext {
   constructor(
     private readonly classRef: Constructor,
     private readonly handler: Function,
-    private readonly args: any[],
     private readonly request: Request,
     private readonly response: Response,
   ) {}
@@ -180,10 +183,6 @@ class ExecutionContextImpl implements ExecutionContext {
 
   getHandler(): Function {
     return this.handler;
-  }
-
-  getArgs(): any[] {
-    return this.args;
   }
 
   switchToHttp(): HttpContext {
@@ -198,7 +197,7 @@ class GuardPipeline {
   static async execute(
     guards: (Constructor<CanActivate> | CanActivate)[],
     context: ExecutionContext,
-    injector: any,
+    injector: Injector,
   ): Promise<boolean> {
     if (guards.length === 0) {
       return true;
@@ -208,7 +207,7 @@ class GuardPipeline {
       let guardInstance: CanActivate;
 
       if (typeof guardOrClass === "function") {
-        guardInstance = injector.resolve(guardOrClass);
+        guardInstance = await injector.resolve(guardOrClass);
       } else {
         guardInstance = guardOrClass;
       }
@@ -248,7 +247,7 @@ class InterceptorPipeline {
     interceptors: (Constructor<OrcaInterceptor> | OrcaInterceptor)[],
     context: ExecutionContext,
     handler: () => Promise<T>,
-    injector: any,
+    injector: Injector,
   ): Promise<T> {
     if (interceptors.length === 0) {
       return handler();
@@ -260,7 +259,7 @@ class InterceptorPipeline {
       const currentIndex = index++;
 
       return {
-        handle: (): Observable<T> => {
+        handle: async (): Promise<Observable<T>> => {
           if (currentIndex >= interceptors.length) {
             return new Observable<T>((observer) => {
               handler()
@@ -278,7 +277,7 @@ class InterceptorPipeline {
 
           let interceptorInstance: OrcaInterceptor;
           if (typeof interceptorOrClass === "function") {
-            interceptorInstance = injector.resolve(interceptorOrClass);
+            interceptorInstance = await injector.resolve(interceptorOrClass);
           } else {
             interceptorInstance = interceptorOrClass;
           }
@@ -307,11 +306,11 @@ class InterceptorPipeline {
       };
     };
 
-    return new Promise<T>((resolve, reject) => {
+    return new Promise<T>(async (resolve, reject) => {
       const observable = createCallHandler().handle();
 
       let result: T;
-      observable.subscribe({
+      (await observable).subscribe({
         next: (value) => {
           result = value;
         },
@@ -323,6 +322,73 @@ class InterceptorPipeline {
         },
       });
     });
+  }
+}
+
+class DependenciesScanner {
+  private scannedGuards = new Set<Constructor<CanActivate>>();
+  private scannedInterceptors = new Set<Constructor<OrcaInterceptor>>();
+
+  scanController(controller: Constructor): void {
+    this.scanGuardsFromMetadata(controller);
+    this.scanInterceptorsFromMetadata(controller);
+
+    const methodKeys = Reflect.ownKeys(controller.prototype);
+    for (const methodKey of methodKeys) {
+      this.scanGuardsFromMetadata(controller.prototype, methodKey);
+      this.scanInterceptorsFromMetadata(controller.prototype, methodKey);
+    }
+  }
+
+  private scanGuardsFromMetadata(
+    target: any,
+    propertyKey?: string | symbol,
+  ): void {
+    const guards = propertyKey
+      ? Reflect.getMetadata(GUARDS_KEY, target, propertyKey)
+      : Reflect.getMetadata(GUARDS_KEY, target);
+
+    if (!guards) return;
+
+    for (const guard of guards) {
+      if (typeof guard === "function") {
+        this.scannedGuards.add(guard);
+      }
+    }
+  }
+
+  private scanInterceptorsFromMetadata(
+    target: any,
+    propertyKey?: string | symbol,
+  ): void {
+    const interceptors = propertyKey
+      ? Reflect.getMetadata(INTERCEPTORS_KEY, target, propertyKey)
+      : Reflect.getMetadata(INTERCEPTORS_KEY, target);
+
+    if (!interceptors) return;
+
+    for (const interceptor of interceptors) {
+      if (typeof interceptor === "function") {
+        this.scannedInterceptors.add(interceptor);
+      }
+    }
+  }
+
+  getGuards(): Constructor<CanActivate>[] {
+    return Array.from(this.scannedGuards);
+  }
+
+  getInterceptors(): Constructor<OrcaInterceptor>[] {
+    return Array.from(this.scannedInterceptors);
+  }
+
+  getProviders(): any[] {
+    const guards = this.getGuards().map((g) => ProviderNormalizer.normalize(g));
+    const interceptors = this.getInterceptors().map((i) =>
+      ProviderNormalizer.normalize(i),
+    );
+
+    return [...guards, ...interceptors];
   }
 }
 
@@ -355,6 +421,7 @@ class ControllerRegistrationService {
 
   private buildMethodArgs(
     req: Request,
+    res: Response,
     paramsMeta: Record<number, ParamMeta>,
     designParams: any[],
   ): any[] {
@@ -364,14 +431,18 @@ class ControllerRegistrationService {
       const meta = paramsMeta[i];
       if (!meta) continue;
 
-      const source = this.getParamSource(req, meta.type);
+      const source = this.getParamSource(req, res, meta.type);
       args[i] = meta.key ? source?.[meta.key] : source;
     }
 
     return args;
   }
 
-  private getParamSource(req: Request, type: HandlerParamType): any {
+  private getParamSource(
+    req: Request,
+    res: Response,
+    type: HandlerParamType,
+  ): any {
     switch (type) {
       case HandlerParamType.BODY:
         return req.body;
@@ -379,6 +450,14 @@ class ControllerRegistrationService {
         return req.params;
       case HandlerParamType.QUERY:
         return req.query;
+      case HandlerParamType.FILE:
+        return (req as any).file;
+      case HandlerParamType.FILES:
+        return (req as any).files;
+      case HandlerParamType.REQUEST:
+        return req;
+      case HandlerParamType.RESPONSE:
+        return res;
       default:
         return undefined;
     }
@@ -391,7 +470,7 @@ class ControllerRegistrationService {
   ): Promise<void> {
     if (res.headersSent) return;
 
-    if (isSSE && result instanceof Observable) {
+    if (isSSE && isObservable(result)) {
       result.subscribe({
         next: (data: any) => {
           res.write(`data: ${JSON.stringify(data)}\n\n`);
@@ -460,6 +539,12 @@ class ControllerRegistrationService {
           res.setHeader("Connection", "keep-alive");
         }
 
+        const requestContext: RequestContext = {
+          request: req,
+          response: res,
+          metadata: {},
+        };
+
         const designParams: any[] =
           Reflect.getMetadata(
             DESIGN_PARAMTYPES,
@@ -467,12 +552,9 @@ class ControllerRegistrationService {
             methodKey,
           ) ?? [];
 
-        const args = this.buildMethodArgs(req, paramsMeta, designParams);
-
         const context = new ExecutionContextImpl(
           CtrlCls,
           instance[methodKey],
-          args,
           req,
           res,
         );
@@ -495,13 +577,21 @@ class ControllerRegistrationService {
         const result = await InterceptorPipeline.execute(
           interceptors,
           context,
-          async () => instance[methodKey](...args),
+          async () => {
+            const args = this.buildMethodArgs(
+              req,
+              res,
+              paramsMeta,
+              designParams,
+            );
+            return instance[methodKey](...args);
+          },
           this.injector,
         );
 
         await this.handleMethodResult(result, res, isSSE);
       } catch (err: any) {
-        res.send(err.message);
+        res.status(500).send(err.message);
       }
     });
   }
@@ -517,11 +607,11 @@ class ControllerRegistrationService {
     );
   }
 
-  public register(CtrlCls: Constructor): void {
-    const instance = this.injector.resolve(CtrlCls);
+  public async register(CtrlCls: Constructor): Promise<void> {
+    const instance = await this.injector.resolve(CtrlCls);
     const prefix: string =
       Reflect.getMetadata(CONTROLLER_PREFIX_KEY, CtrlCls) ?? "/";
-    const actor = this.injector.resolve(Actor);
+    const actor = await this.injector.resolve(Actor);
 
     this.registerEventHandlers(CtrlCls, instance, actor);
     this.registerHttpMethods(CtrlCls, instance, prefix);
@@ -683,8 +773,8 @@ class SocketService {
   public static setup(server: http.Server, injector: Injector): void {
     const io = new Server(server);
 
-    io.on("connection", (socket) => {
-      const actor = injector.resolve(Actor);
+    io.on("connection", async (socket) => {
+      const actor = await injector.resolve(Actor);
 
       actor.register(socket.id, {
         send: (message) => {
@@ -718,10 +808,40 @@ export class NodeFactory {
     return appNode;
   }
 
+  private static scanDependencies(appNode: any): DependenciesScanner {
+    const scanner = new DependenciesScanner();
+    const rootControllers = [
+      ...store.get<Set<Constructor>>("root_controllers")!,
+    ];
+
+    rootControllers.forEach((ctrl) => scanner.scanController(ctrl));
+
+    appNode.traverse((node: any) => {
+      const providers: Provider[] = [...node.getProviders().values()];
+
+      const controllers = providers.filter((provider) => {
+        const token = provider.provide;
+
+        return (
+          typeof token === "function" && Reflect.getMetadata(CONTROLLER, token)
+        );
+      });
+
+      controllers.forEach((c) => {
+        if (c.useClass) {
+          scanner.scanController(c.useClass);
+        }
+      });
+    });
+
+    return scanner;
+  }
+
   private static createRootInjector(
     appNode: any,
     app: Express,
     rootModule: Constructor,
+    scanner: DependenciesScanner,
   ): Injector {
     const allProviders = collectAllProvidersFromNode(appNode);
     const rootControllers = [
@@ -730,9 +850,12 @@ export class NodeFactory {
 
     const bootstrap = Reflect.getMetadata(BOOTSTRAP, rootModule);
 
+    const guardAndInterceptorProviders = scanner.getProviders();
+
     return new Injector([
       ...allProviders,
       ...rootControllers,
+      ...guardAndInterceptorProviders,
       { provide: "OSC_URL", useValue: "/osc" },
       { provide: EXPRESS_ADAPTER_HOST, useValue: app },
       {
@@ -761,15 +884,21 @@ export class NodeFactory {
     appNode.traverse((node: any) => {
       const providers = [...node.getProviders().values()];
 
-      const controllers = providers.filter((provider) =>
-        Reflect.getMetadata(CONTROLLER, provider.provide),
-      );
+      const controllers = providers.filter((provider) => {
+        const token = provider.provide;
+
+        return (
+          typeof token === "function" && Reflect.getMetadata(CONTROLLER, token)
+        );
+      });
 
       controllers.forEach((c) => registrationService.register(c.useClass!));
 
       providers
         .filter((provider) => provider.eager)
-        .forEach((p) => injector.resolve(p.provide));
+        .forEach(async (p) => {
+          await injector.resolve(p.provide);
+        });
     });
   }
 
@@ -792,7 +921,14 @@ export class NodeFactory {
 
     const appNode = this.compileAndValidate(rootModule);
 
-    const rootInjector = this.createRootInjector(appNode, app, rootModule);
+    const scanner = this.scanDependencies(appNode);
+
+    const rootInjector = this.createRootInjector(
+      appNode,
+      app,
+      rootModule,
+      scanner,
+    );
     setCurrentInjector(rootInjector);
 
     this.registerControllers(appNode, rootInjector, app);

@@ -1,0 +1,21 @@
+{
+  "name": "@kithinji/cron",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js --watch",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "esbuild": "^0.27.2",
+    "typescript": "^5.9.3",
+    "@kithinji/orca": "workspace:*"
+  },
+  "main": "dist/index.mjs",
+  "types": "./dist/types/index.d.ts",
+  "dependencies": {
+    "cron": "^4.4.0"
+  }
+}

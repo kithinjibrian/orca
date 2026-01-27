@@ -18,7 +18,7 @@ export class ServeStaticModule {
     class ServeStaticService {
       constructor(
         @Inject(EXPRESS_ADAPTER_HOST, { maybe: true })
-        private readonly app?: Express
+        private readonly app?: Express,
       ) {
         if (!this.app) throw new Error("Couldn't find Express adapter!");
 
@@ -27,7 +27,7 @@ export class ServeStaticModule {
 
         this.app.use(express.static(resolvedPath));
 
-        this.app.get(/.*/, (req, res) => {
+        this.app.get(/^\/(?!api).*/, (req, res) => {
           res.sendFile(indexPath);
         });
       }

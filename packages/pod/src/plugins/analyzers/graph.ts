@@ -39,7 +39,59 @@ export interface DependencyGraph {
   [filePath: string]: FileNode;
 }
 
+function findProjectRoot(startPath: string): string {
+  let currentDir = path.dirname(startPath);
+
+  while (currentDir !== path.parse(currentDir).root) {
+    const packageJsonPath = path.join(currentDir, "package.json");
+    if (fs.existsSync(packageJsonPath)) {
+      return currentDir;
+    }
+    currentDir = path.dirname(currentDir);
+  }
+
+  return process.cwd();
+}
+
+function resolvePathAlias(
+  importPath: string,
+  projectRoot: string,
+): string | null {
+  if (importPath.startsWith("@/")) {
+    const possiblePaths = [
+      path.join(projectRoot, "src", importPath.slice(2)),
+      path.join(projectRoot, importPath.slice(2)),
+    ];
+
+    for (const possiblePath of possiblePaths) {
+      const extensions = ["", ".ts", ".tsx", ".js", ".jsx"];
+      for (const ext of extensions) {
+        const fullPath = possiblePath + ext;
+        if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+          return fullPath;
+        }
+      }
+
+      const indexFiles = ["/index.ts", "/index.tsx", "/index.js", "/index.jsx"];
+      for (const indexFile of indexFiles) {
+        const fullPath = possiblePath + indexFile;
+        if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+          return fullPath;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
 function resolveFilePath(fromFile: string, importPath: string): string | null {
+  if (importPath.startsWith("@/")) {
+    const projectRoot = findProjectRoot(fromFile);
+    const aliasResolved = resolvePathAlias(importPath, projectRoot);
+    if (aliasResolved) return aliasResolved;
+  }
+
   if (!importPath.startsWith(".")) return null;
 
   const dir = path.dirname(fromFile);
@@ -92,7 +144,7 @@ function extractDirective(ast: Module): "public" | "client" | null {
 }
 
 function extractImports(
-  ast: Module
+  ast: Module,
 ): Array<{ path: string; specifiers: any[] }> {
   const imports: Array<{ path: string; specifiers: any[] }> = [];
   for (const item of ast.body) {
@@ -107,7 +159,7 @@ function extractExports(
   ast: Module,
   currentFile: string,
   graph: DependencyGraph,
-  processFile: (fp: string) => void
+  processFile: (fp: string) => void,
 ): SymbolInfo[] {
   const exports: SymbolInfo[] = [];
 
@@ -267,7 +319,7 @@ export function buildGraph(entryPoints: string[]): DependencyGraph {
         }
 
         return { sourcePath: importPath, resolvedPath, symbols };
-      }
+      },
     );
 
     graph[filePath] = { filePath, isTsx, directive, imports, exports };

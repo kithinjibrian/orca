@@ -106,6 +106,7 @@ interface ButtonHTMLAttributes extends HTMLAttributes {
   form?: string;
   formAction?: string;
   formMethod?: string;
+  autoFocus?: boolean;
 }
 
 interface InputHTMLAttributes extends HTMLAttributes {
@@ -161,6 +162,7 @@ interface TextareaHTMLAttributes extends HTMLAttributes {
   rows?: number;
   cols?: number;
   disabled?: boolean;
+  autoFocus?: boolean;
   readOnly?: boolean;
   required?: boolean;
   maxLength?: number;
@@ -174,6 +176,7 @@ interface SelectHTMLAttributes extends HTMLAttributes {
   multiple?: boolean;
   disabled?: boolean;
   required?: boolean;
+  autoFocus?: boolean;
   size?: number;
   autoComplete?: string;
 }

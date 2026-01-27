@@ -17,6 +17,7 @@ import {
   InjectedToken,
   Provider,
   Token,
+  OptionalFactoryDependency,
 } from "../types";
 import { Node } from "./node";
 
@@ -31,12 +32,16 @@ export class Compiler {
     const target = this.isDynamicModule(moduleOrDynamic)
       ? moduleOrDynamic.module
       : moduleOrDynamic;
-    if (this.nodes.has(target.name)) return this.nodes.get(target.name)!;
 
-    const node = new Node(target.name);
-    this.nodes.set(target.name, node);
+    const nodeKey = this.getNodeKey(moduleOrDynamic, target);
+
+    if (this.nodes.has(nodeKey)) return this.nodes.get(nodeKey)!;
+
+    const node = new Node(nodeKey);
+    this.nodes.set(nodeKey, node);
 
     const imports = this.getImports(moduleOrDynamic);
+
     node.setChildren(imports.map((imp) => this.createNode(imp)));
 
     const providers = this.getProviders(moduleOrDynamic);
@@ -89,6 +94,59 @@ export class Compiler {
     return node;
   }
 
+  private getNodeKey(moduleOrDynamic: IModule, target: Constructor): string {
+    if (this.isDynamicModule(moduleOrDynamic)) {
+      if (moduleOrDynamic.__uniqueId) {
+        return `${target.name}:${moduleOrDynamic.__uniqueId}`;
+      }
+
+      const autoId = this.generateAutoId(moduleOrDynamic);
+      if (autoId) {
+        return `${target.name}:${autoId}`;
+      }
+    }
+    return target.name;
+  }
+
+  private generateAutoId(dynamicModule: DynamicModule): string | null {
+    const parts: string[] = [];
+
+    if (dynamicModule.providers && dynamicModule.providers.length > 0) {
+      const providerTokens = dynamicModule.providers
+        .map((p) => this.getProviderToken(p))
+        .map((t) => (typeof t === "function" ? t.name : String(t)))
+        .sort()
+        .join(",");
+      parts.push(`p:${providerTokens}`);
+    }
+
+    if (dynamicModule.exports && dynamicModule.exports.length > 0) {
+      const exportTokens = dynamicModule.exports
+        .map((t) => (typeof t === "function" ? t.name : String(t)))
+        .sort()
+        .join(",");
+      parts.push(`e:${exportTokens}`);
+    }
+
+    if (dynamicModule.controllers && dynamicModule.controllers.length > 0) {
+      const controllerNames = dynamicModule.controllers
+        .map((c) => c.name)
+        .sort()
+        .join(",");
+      parts.push(`c:${controllerNames}`);
+    }
+
+    if (dynamicModule.declarations && dynamicModule.declarations.length > 0) {
+      const declarationNames = dynamicModule.declarations
+        .map((d) => d.name)
+        .sort()
+        .join(",");
+      parts.push(`d:${declarationNames}`);
+    }
+
+    return parts.length > 0 ? parts.join("|") : null;
+  }
+
   public validate(rootNode: Node): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
     const allNodes = new Map<string, Node>();
@@ -107,9 +165,9 @@ export class Compiler {
           errors.push(
             `EXPORT ERROR in module "${moduleName}":\n` +
               `   Exports token "${tokenName(
-                exp
+                exp,
               )}" but this module does not provide it.\n` +
-              `   → Add it to providers/controllers/declarations, or remove from exports.`
+              `   → Add it to providers/controllers/declarations, or remove from exports.`,
           );
         }
       }
@@ -120,7 +178,7 @@ export class Compiler {
           errors.push(
             `DUPLICATE PROVIDER in module "${moduleName}":\n` +
               `   Token "${tokenName(token)}" is registered more than once.\n` +
-              `   → Remove duplicate entries.`
+              `   → Remove duplicate entries.`,
           );
         }
         seen.add(token);
@@ -134,7 +192,7 @@ export class Compiler {
             dep,
             node,
             allNodes,
-            new Set()
+            new Set(),
           );
           if (!providingModule) {
             const consumer = tokenName(token);
@@ -148,7 +206,7 @@ export class Compiler {
             if (possibleProviders.length > 0) {
               suggestion =
                 `\n   → "${missing}" IS provided in: ${possibleProviders.join(
-                  ", "
+                  ", ",
                 )}\n` +
                 `   → Ensure one of those modules exports it AND "${moduleName}" imports that module.`;
             } else {
@@ -157,7 +215,7 @@ export class Compiler {
 
             errors.push(
               `UNRESOLVED DEPENDENCY in module "${moduleName}":\n` +
-                `   "${consumer}" requires "${missing}"${suggestion}`
+                `   "${consumer}" requires "${missing}"${suggestion}`,
             );
           }
         }
@@ -179,11 +237,11 @@ export class Compiler {
               errors.push(
                 `COMPONENT DEPENDENCY ERROR in module "${moduleName}":\n` +
                   `   Component "${tokenName(token)}" lists "${tokenName(
-                    depComp
+                    depComp,
                   )}" in deps\n` +
                   `   → "${tokenName(
-                    depComp
-                  )}" is not a component (missing @Component decorator)`
+                    depComp,
+                  )}" is not a component (missing @Component decorator)`,
               );
             }
 
@@ -192,17 +250,17 @@ export class Compiler {
                 depComp,
                 node,
                 allNodes,
-                new Set()
+                new Set(),
               );
               if (!providingMod) {
                 errors.push(
                   `COMPONENT DEPENDENCY ERROR in module "${moduleName}":\n` +
                     `   Component "${tokenName(token)}" renders "${tokenName(
-                      depComp
+                      depComp,
                     )}"\n` +
                     `   → "${tokenName(
-                      depComp
-                    )}" must be in declarations or imported`
+                      depComp,
+                    )}" must be in declarations or imported`,
                 );
               }
             }
@@ -217,7 +275,7 @@ export class Compiler {
   private collectAllNodes(
     node: Node,
     collected: Map<string, Node>,
-    visited = new Set<string>()
+    visited = new Set<string>(),
   ): void {
     if (visited.has(node.name)) return;
     visited.add(node.name);
@@ -231,7 +289,7 @@ export class Compiler {
     token: Token<any>,
     fromNode: Node,
     allNodes: Map<string, Node>,
-    visited: Set<string> = new Set()
+    visited: Set<string> = new Set(),
   ): string | null {
     if (visited.has(fromNode.name)) return null;
     visited.add(fromNode.name);
@@ -251,13 +309,27 @@ export class Compiler {
   }
 
   private extractDependencies(item: Provider | Constructor): Token<any>[] {
-    if (typeof item === "object" && "deps" in item && item.deps)
-      return item.deps;
+    if (typeof item === "object" && "inject" in item && item.inject) {
+      return item.inject
+        .filter((dep) => {
+          if (this.isOptionalDependency(dep)) {
+            return !dep.optional;
+          }
+          return true;
+        })
+        .map((dep) => (this.isOptionalDependency(dep) ? dep.token : dep));
+    }
     if (typeof item === "object" && item.useClass)
       return this.getConstructorDependencies(item.useClass);
     if (typeof item === "function")
       return this.getConstructorDependencies(item);
     return [];
+  }
+
+  private isOptionalDependency(
+    dep: Token | OptionalFactoryDependency,
+  ): dep is OptionalFactoryDependency {
+    return typeof dep === "object" && "token" in dep && "optional" in dep;
   }
 
   private getConstructorDependencies(constructor: Constructor): Token<any>[] {
@@ -338,7 +410,7 @@ export class Compiler {
     const exports = node.getExports();
     if (exports.size > 0) {
       const names = Array.from(exports).map((t) =>
-        typeof t === "function" ? t.name : String(t)
+        typeof t === "function" ? t.name : String(t),
       );
       console.log(`${indent}├─ Exports: [${names.join(", ")}]`);
     }

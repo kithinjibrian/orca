@@ -10,8 +10,7 @@ interface PluginState {
 }
 
 interface TransformContext {
-  observables: Map<string, BabelTypes.Expression>;
-  observableSignals: Map<string, BabelTypes.Identifier>;
+  signals: Map<string, BabelTypes.Identifier>;
 }
 
 interface TransformResult {
@@ -28,25 +27,13 @@ class NodeTypeGuards {
       this.t.isIdentifier(expr.property, { name: "value" })
     );
   }
-
-  isBehaviorSubjectMember(
-    expr: BabelTypes.Node,
-  ): expr is BabelTypes.MemberExpression {
-    return (
-      this.t.isMemberExpression(expr) &&
-      this.t.isIdentifier(expr.property, { name: "$value" })
-    );
-  }
 }
 
 class ASTUtilities {
   constructor(private t: typeof BabelTypes, private guards: NodeTypeGuards) {}
 
   getObject(expr: BabelTypes.Expression): BabelTypes.Expression {
-    if (
-      this.guards.isSignalMember(expr) ||
-      this.guards.isBehaviorSubjectMember(expr)
-    ) {
+    if (this.guards.isSignalMember(expr)) {
       return expr.object as BabelTypes.Expression;
     }
     return expr;
@@ -92,20 +79,6 @@ class ASTUtilities {
     return expr;
   }
 
-  insertBeforeReturn(
-    body: BabelTypes.Statement[],
-    statements: BabelTypes.Statement[],
-  ): void {
-    const returnIndex = body.findIndex((stmt) =>
-      this.t.isReturnStatement(stmt),
-    );
-    if (returnIndex !== -1) {
-      body.splice(returnIndex, 0, ...statements);
-    } else {
-      body.push(...statements);
-    }
-  }
-
   addEffectCleanup(
     scope: any,
     effectCall: BabelTypes.CallExpression,
@@ -113,11 +86,9 @@ class ASTUtilities {
     const cleanupId = scope.generateUidIdentifier("cleanup");
 
     return [
-      // const _cleanup1 = $effect(...)
       this.t.variableDeclaration("const", [
         this.t.variableDeclarator(cleanupId, effectCall),
       ]),
-      // self.__cleanup = [...(self.__cleanup || []), _cleanup1]
       this.t.expressionStatement(
         this.t.assignmentExpression(
           "=",
@@ -244,106 +215,12 @@ class JSXUtilities {
   }
 }
 
-class ObservableManager {
-  constructor(private t: typeof BabelTypes, private guards: NodeTypeGuards) {}
-
-  getObservableKey(expr: BabelTypes.Node): string {
-    return this.stringifyNode(expr);
-  }
-
-  private stringifyNode(node: any): string {
-    if (!node) return "";
-    if (this.t.isThisExpression(node)) return "this";
-    if (this.t.isIdentifier(node)) return node.name;
-
-    if (this.t.isMemberExpression(node)) {
-      const obj = this.stringifyNode(node.object);
-      const prop = node.computed
-        ? `[${this.stringifyNode(node.property)}]`
-        : `.${(node.property as BabelTypes.Identifier).name}`;
-      return obj + prop;
-    }
-
-    if (this.t.isCallExpression(node)) {
-      const callee = this.stringifyNode(node.callee);
-      const args = node.arguments
-        .map((arg) => this.stringifyNode(arg))
-        .join(",");
-      return `${callee}(${args})`;
-    }
-
-    if (this.t.isStringLiteral(node)) return `"${node.value}"`;
-    if (this.t.isNumericLiteral(node)) return String(node.value);
-
-    return node.type + JSON.stringify(node.name || node.value || "");
-  }
-
-  collectObservables(
-    node: BabelTypes.Node,
-    observables: Map<string, BabelTypes.Expression>,
-    astUtils: ASTUtilities,
-  ): void {
-    this.walkNode(node, (n: any) => {
-      if (this.guards.isBehaviorSubjectMember(n)) {
-        const observable = astUtils.replaceThisWithSelf(
-          n.object as BabelTypes.Expression,
-        );
-        const key = this.getObservableKey(observable);
-        if (!observables.has(key)) {
-          observables.set(key, observable);
-        }
-      }
-    });
-  }
-
-  replaceObservablesWithSignals<T extends BabelTypes.Node>(
-    node: T,
-    observableSignals: Map<string, BabelTypes.Identifier>,
-    astUtils: ASTUtilities,
-  ): T {
-    const cloned = this.t.cloneNode(node, true) as T;
-
-    this.walkNode(cloned, (n: any) => {
-      if (this.guards.isBehaviorSubjectMember(n)) {
-        const observable = astUtils.replaceThisWithSelf(n.object);
-        const key = this.getObservableKey(observable);
-        const signalId = observableSignals.get(key);
-
-        if (signalId) {
-          n.object = signalId;
-          n.property = this.t.identifier("value");
-        }
-      }
-    });
-
-    return cloned;
-  }
-
-  private walkNode(node: any, callback: (node: any) => void): void {
-    if (!node || typeof node !== "object") return;
-
-    callback(node);
-
-    for (const key in node) {
-      if (["loc", "start", "end", "extra"].includes(key)) continue;
-
-      const value = node[key];
-      if (Array.isArray(value)) {
-        value.forEach((item) => this.walkNode(item, callback));
-      } else if (value && typeof value === "object") {
-        this.walkNode(value, callback);
-      }
-    }
-  }
-}
-
 class ElementTransformer {
   constructor(
     private t: typeof BabelTypes,
     private guards: NodeTypeGuards,
     private astUtils: ASTUtilities,
     private jsxUtils: JSXUtilities,
-    private observableManager: ObservableManager,
   ) {}
 
   transformElement(
@@ -452,7 +329,6 @@ class ElementTransformer {
     const statements: BabelTypes.Statement[] = [];
     const isSVGTag = this.jsxUtils.isSVGTag(tag);
 
-    // Create element with proper namespace for SVG
     statements.push(
       this.t.variableDeclaration("var", [
         this.t.variableDeclarator(
@@ -578,18 +454,10 @@ class ElementTransformer {
   ): void {
     for (const attr of attributes) {
       if (this.t.isJSXSpreadAttribute(attr)) {
-        this.observableManager.collectObservables(
-          attr.argument,
-          context.observables,
-          this.astUtils,
-        );
-        const replaced = this.observableManager.replaceObservablesWithSignals(
-          attr.argument,
-          context.observableSignals,
-          this.astUtils,
-        );
         props.push(
-          this.t.spreadElement(this.astUtils.replaceThisWithSelf(replaced)),
+          this.t.spreadElement(
+            this.astUtils.replaceThisWithSelf(attr.argument),
+          ),
         );
         continue;
       }
@@ -600,43 +468,23 @@ class ElementTransformer {
         props.push(this.t.objectProperty(this.t.identifier(key), attr.value));
       } else if (this.t.isJSXExpressionContainer(attr.value)) {
         const expr = attr.value.expression as BabelTypes.Expression;
-        this.observableManager.collectObservables(
-          expr,
-          context.observables,
-          this.astUtils,
-        );
 
-        if (
-          this.guards.isSignalMember(expr) ||
-          this.guards.isBehaviorSubjectMember(expr)
-        ) {
-          const replaced = this.observableManager.replaceObservablesWithSignals(
-            expr,
-            context.observableSignals,
-            this.astUtils,
-          );
+        if (this.guards.isSignalMember(expr)) {
           props.push(
             this.t.objectMethod(
               "get",
               this.t.identifier(key),
               [],
               this.t.blockStatement([
-                this.t.returnStatement(
-                  this.astUtils.replaceThisWithSelf(replaced),
-                ),
+                this.t.returnStatement(this.astUtils.replaceThisWithSelf(expr)),
               ]),
             ),
           );
         } else {
-          const replaced = this.observableManager.replaceObservablesWithSignals(
-            expr,
-            context.observableSignals,
-            this.astUtils,
-          );
           props.push(
             this.t.objectProperty(
               this.t.identifier(key),
-              this.astUtils.replaceThisWithSelf(replaced),
+              this.astUtils.replaceThisWithSelf(expr),
             ),
           );
         }
@@ -673,23 +521,12 @@ class ElementTransformer {
 
     for (const attr of attributes) {
       if (this.t.isJSXSpreadAttribute(attr)) {
-        this.observableManager.collectObservables(
-          attr.argument,
-          context.observables,
-          this.astUtils,
-        );
-        const replaced = this.observableManager.replaceObservablesWithSignals(
-          attr.argument,
-          context.observableSignals,
-          this.astUtils,
-        );
-
         const effectCall = this.t.callExpression(this.t.identifier("$effect"), [
           this.t.arrowFunctionExpression(
             [],
             this.t.callExpression(this.t.identifier("$spread"), [
               elId,
-              this.astUtils.replaceThisWithSelf(replaced),
+              this.astUtils.replaceThisWithSelf(attr.argument),
             ]),
           ),
         ]);
@@ -709,17 +546,9 @@ class ElementTransformer {
       if (key === "ref") {
         hasRef = true;
         if (this.t.isJSXExpressionContainer(attr.value)) {
-          this.observableManager.collectObservables(
-            attr.value.expression,
-            context.observables,
-            this.astUtils,
-          );
-          const replaced = this.observableManager.replaceObservablesWithSignals(
+          refValue = this.astUtils.replaceThisWithSelf(
             attr.value.expression as BabelTypes.Expression,
-            context.observableSignals,
-            this.astUtils,
           );
-          refValue = this.astUtils.replaceThisWithSelf(replaced);
         }
         continue;
       }
@@ -727,17 +556,9 @@ class ElementTransformer {
       if (key === "dangerouslySetInnerHTML") {
         hasDangerousHTML = true;
         if (this.t.isJSXExpressionContainer(attr.value)) {
-          this.observableManager.collectObservables(
-            attr.value.expression,
-            context.observables,
-            this.astUtils,
-          );
-          const replaced = this.observableManager.replaceObservablesWithSignals(
+          dangerousHTMLValue = this.astUtils.replaceThisWithSelf(
             attr.value.expression as BabelTypes.Expression,
-            context.observableSignals,
-            this.astUtils,
           );
-          dangerousHTMLValue = this.astUtils.replaceThisWithSelf(replaced);
         }
         continue;
       }
@@ -759,15 +580,10 @@ class ElementTransformer {
         continue;
       }
 
-      this.processRegularAttribute(key, attr, elId, statements, context);
+      this.processRegularAttribute(key, attr, elId, statements, scope, context);
     }
 
-    if (
-      tag === "a" &&
-      !hasClickHandler &&
-      hrefValue &&
-      this.isRelativeUrl(hrefValue)
-    ) {
+    if (tag === "a" && !hasClickHandler) {
       statements.push(
         this.t.expressionStatement(
           this.t.callExpression(
@@ -778,13 +594,25 @@ class ElementTransformer {
             [
               this.t.stringLiteral("click"),
               this.t.arrowFunctionExpression(
-                [this.t.identifier("event")],
+                [this.t.identifier("e")],
                 this.t.callExpression(
                   this.t.memberExpression(
                     this.t.identifier("Orca"),
                     this.t.identifier("navigate"),
                   ),
-                  [this.t.identifier("event"), this.t.stringLiteral(hrefValue)],
+                  [
+                    this.t.identifier("e"),
+                    this.t.callExpression(
+                      this.t.memberExpression(
+                        this.t.memberExpression(
+                          this.t.identifier("e"),
+                          this.t.identifier("currentTarget"),
+                        ),
+                        this.t.identifier("getAttribute"),
+                      ),
+                      [this.t.stringLiteral("href")],
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -824,17 +652,9 @@ class ElementTransformer {
     let handler: BabelTypes.Expression = this.t.nullLiteral();
 
     if (this.t.isJSXExpressionContainer(attr.value)) {
-      this.observableManager.collectObservables(
-        attr.value.expression,
-        context.observables,
-        this.astUtils,
-      );
-      const replaced = this.observableManager.replaceObservablesWithSignals(
+      handler = this.astUtils.replaceThisWithSelf(
         attr.value.expression as BabelTypes.Expression,
-        context.observableSignals,
-        this.astUtils,
       );
-      handler = this.astUtils.replaceThisWithSelf(replaced);
     }
 
     statements.push(
@@ -856,23 +676,14 @@ class ElementTransformer {
   ): void {
     if (!this.t.isJSXExpressionContainer(attr.value)) return;
 
-    this.observableManager.collectObservables(
-      attr.value.expression,
-      context.observables,
-      this.astUtils,
-    );
-    const replaced = this.observableManager.replaceObservablesWithSignals(
-      attr.value.expression as BabelTypes.Expression,
-      context.observableSignals,
-      this.astUtils,
-    );
-
     const effectCall = this.t.callExpression(this.t.identifier("$effect"), [
       this.t.arrowFunctionExpression(
         [],
         this.t.callExpression(this.t.identifier("$style"), [
           elId,
-          this.astUtils.replaceThisWithSelf(replaced),
+          this.astUtils.replaceThisWithSelf(
+            attr.value.expression as BabelTypes.Expression,
+          ),
         ]),
       ),
     ]);
@@ -886,37 +697,57 @@ class ElementTransformer {
     attr: BabelTypes.JSXAttribute,
     elId: BabelTypes.Identifier,
     statements: BabelTypes.Statement[],
+    scope: any,
     context: TransformContext,
   ): void {
     const attrName = key === "className" ? "class" : key;
     let value: BabelTypes.Expression;
+    let isReactive = false;
 
     if (this.t.isStringLiteral(attr.value)) {
       value = attr.value;
     } else if (this.t.isJSXExpressionContainer(attr.value)) {
-      this.observableManager.collectObservables(
-        attr.value.expression,
-        context.observables,
-        this.astUtils,
-      );
-      const replaced = this.observableManager.replaceObservablesWithSignals(
+      const expr = this.astUtils.replaceThisWithSelf(
         attr.value.expression as BabelTypes.Expression,
-        context.observableSignals,
-        this.astUtils,
       );
-      value = this.astUtils.replaceThisWithSelf(replaced);
+
+      isReactive = this.guards.isSignalMember(
+        attr.value.expression as BabelTypes.Expression,
+      );
+
+      value = expr;
     } else {
       value = this.t.booleanLiteral(true);
     }
 
-    statements.push(
-      this.t.expressionStatement(
-        this.t.callExpression(
-          this.t.memberExpression(elId, this.t.identifier("setAttribute")),
-          [this.t.stringLiteral(attrName), value],
+    if (isReactive) {
+      const effectCall = this.t.callExpression(this.t.identifier("$effect"), [
+        this.t.arrowFunctionExpression(
+          [],
+          this.t.assignmentExpression(
+            "=",
+            this.t.memberExpression(elId, this.t.identifier(attrName)),
+            value,
+          ),
         ),
-      ),
-    );
+      ]);
+
+      const cleanupStatements = this.astUtils.addEffectCleanup(
+        scope,
+        effectCall,
+      );
+
+      statements.push(...cleanupStatements);
+    } else {
+      statements.push(
+        this.t.expressionStatement(
+          this.t.callExpression(
+            this.t.memberExpression(elId, this.t.identifier("setAttribute")),
+            [this.t.stringLiteral(attrName), value],
+          ),
+        ),
+      );
+    }
   }
 
   private processChildren(
@@ -939,17 +770,9 @@ class ElementTransformer {
       } else if (this.t.isJSXExpressionContainer(child)) {
         const expr = child.expression;
         if (!this.t.isJSXEmptyExpression(expr)) {
-          this.observableManager.collectObservables(
-            expr,
-            context.observables,
-            this.astUtils,
+          childExpressions.push(
+            this.astUtils.replaceThisWithSelf(expr as BabelTypes.Expression),
           );
-          const replaced = this.observableManager.replaceObservablesWithSignals(
-            expr as BabelTypes.Expression,
-            context.observableSignals,
-            this.astUtils,
-          );
-          childExpressions.push(this.astUtils.replaceThisWithSelf(replaced));
         }
       } else if (this.t.isJSXElement(child) || this.t.isJSXFragment(child)) {
         const childEl = this.transformElement({ node: child }, scope, context);
@@ -988,44 +811,44 @@ class ElementTransformer {
         const expr = child.expression;
         if (this.t.isJSXEmptyExpression(expr)) continue;
 
-        this.observableManager.collectObservables(
-          expr,
-          context.observables,
-          this.astUtils,
-        );
-
-        let insertedValue: BabelTypes.Expression;
-        if (this.guards.isSignalMember(expr)) {
-          insertedValue = this.astUtils.getObject(
-            expr as BabelTypes.Expression,
+        if (this.t.isLogicalExpression(expr, { operator: "&&" })) {
+          this.processConditionalAnd(
+            expr,
+            parentId,
+            statements,
+            scope,
+            context,
           );
-        } else if (this.guards.isBehaviorSubjectMember(expr)) {
-          const replaced = this.observableManager.replaceObservablesWithSignals(
-            expr as BabelTypes.Expression,
-            context.observableSignals,
-            this.astUtils,
+        } else if (this.t.isConditionalExpression(expr)) {
+          this.processConditionalTernary(
+            expr,
+            parentId,
+            statements,
+            scope,
+            context,
           );
-          insertedValue = this.astUtils.getObject(replaced);
         } else {
-          const replaced = this.observableManager.replaceObservablesWithSignals(
-            expr as BabelTypes.Expression,
-            context.observableSignals,
-            this.astUtils,
-          );
-          insertedValue = this.t.arrowFunctionExpression(
-            [],
-            this.astUtils.replaceThisWithSelf(replaced),
+          let insertedValue: BabelTypes.Expression;
+          if (this.guards.isSignalMember(expr)) {
+            insertedValue = this.astUtils.getObject(
+              expr as BabelTypes.Expression,
+            );
+          } else {
+            insertedValue = this.t.arrowFunctionExpression(
+              [],
+              this.astUtils.replaceThisWithSelf(expr as BabelTypes.Expression),
+            );
+          }
+
+          statements.push(
+            this.t.expressionStatement(
+              this.t.callExpression(this.t.identifier("$insert"), [
+                parentId,
+                insertedValue,
+              ]),
+            ),
           );
         }
-
-        statements.push(
-          this.t.expressionStatement(
-            this.t.callExpression(this.t.identifier("$insert"), [
-              parentId,
-              insertedValue,
-            ]),
-          ),
-        );
       } else if (this.t.isJSXElement(child) || this.t.isJSXFragment(child)) {
         const childEl = this.transformElement({ node: child }, scope, context);
         statements.push(...childEl.statements);
@@ -1040,19 +863,163 @@ class ElementTransformer {
       }
     }
   }
+
+  private processConditionalAnd(
+    expr: BabelTypes.LogicalExpression,
+    parentId: BabelTypes.Identifier,
+    statements: BabelTypes.Statement[],
+    scope: any,
+    context: TransformContext,
+  ): void {
+    const condition = expr.left;
+    const consequent = expr.right;
+
+    const computedId = scope.generateUidIdentifier("c");
+    const branchExpr = this.transformExpressionToBranch(
+      consequent,
+      scope,
+      context,
+    );
+
+    statements.push(
+      this.t.expressionStatement(
+        this.t.callExpression(this.t.identifier("$insert"), [
+          parentId,
+          this.t.callExpression(
+            this.t.arrowFunctionExpression(
+              [],
+              this.t.blockStatement([
+                this.t.variableDeclaration("var", [
+                  this.t.variableDeclarator(
+                    computedId,
+                    this.t.callExpression(this.t.identifier("$computed"), [
+                      this.t.arrowFunctionExpression(
+                        [],
+                        this.astUtils.replaceThisWithSelf(condition),
+                      ),
+                    ]),
+                  ),
+                ]),
+                this.t.returnStatement(
+                  this.t.arrowFunctionExpression(
+                    [],
+                    this.t.logicalExpression(
+                      "&&",
+                      this.t.memberExpression(
+                        computedId,
+                        this.t.identifier("value"),
+                      ),
+                      this.t.callExpression(branchExpr, []),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+            [],
+          ),
+        ]),
+      ),
+    );
+  }
+
+  private processConditionalTernary(
+    expr: BabelTypes.ConditionalExpression,
+    parentId: BabelTypes.Identifier,
+    statements: BabelTypes.Statement[],
+    scope: any,
+    context: TransformContext,
+  ): void {
+    const condition = expr.test;
+    const consequent = expr.consequent;
+    const alternate = expr.alternate;
+
+    const computedId = scope.generateUidIdentifier("c");
+    const trueBranchExpr = this.transformExpressionToBranch(
+      consequent,
+      scope,
+      context,
+    );
+    const falseBranchExpr = this.transformExpressionToBranch(
+      alternate,
+      scope,
+      context,
+    );
+
+    statements.push(
+      this.t.expressionStatement(
+        this.t.callExpression(this.t.identifier("$insert"), [
+          parentId,
+          this.t.callExpression(
+            this.t.arrowFunctionExpression(
+              [],
+              this.t.blockStatement([
+                this.t.variableDeclaration("var", [
+                  this.t.variableDeclarator(
+                    computedId,
+                    this.t.callExpression(this.t.identifier("$computed"), [
+                      this.t.arrowFunctionExpression(
+                        [],
+                        this.astUtils.replaceThisWithSelf(condition),
+                      ),
+                    ]),
+                  ),
+                ]),
+                this.t.returnStatement(
+                  this.t.arrowFunctionExpression(
+                    [],
+                    this.t.conditionalExpression(
+                      this.t.memberExpression(
+                        computedId,
+                        this.t.identifier("value"),
+                      ),
+                      this.t.callExpression(trueBranchExpr, []),
+                      this.t.callExpression(falseBranchExpr, []),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+            [],
+          ),
+        ]),
+      ),
+    );
+  }
+
+  private transformExpressionToBranch(
+    node: BabelTypes.Expression,
+    scope: any,
+    context: TransformContext,
+  ): BabelTypes.ArrowFunctionExpression {
+    if (this.t.isJSXElement(node) || this.t.isJSXFragment(node)) {
+      const { id, statements } = this.transformElement(
+        { node: node as any },
+        scope,
+        context,
+      );
+
+      return this.t.arrowFunctionExpression(
+        [],
+        this.t.blockStatement([...statements, this.t.returnStatement(id)]),
+      );
+    }
+
+    return this.t.arrowFunctionExpression(
+      [],
+      this.astUtils.replaceThisWithSelf(node),
+    );
+  }
 }
 
 export function j2d({ types: t }: PluginContext): PluginObj<PluginState> {
   const guards = new NodeTypeGuards(t);
   const astUtils = new ASTUtilities(t, guards);
   const jsxUtils = new JSXUtilities(t);
-  const observableManager = new ObservableManager(t, guards);
   const elementTransformer = new ElementTransformer(
     t,
     guards,
     astUtils,
     jsxUtils,
-    observableManager,
   );
 
   return {
@@ -1067,8 +1034,8 @@ export function j2d({ types: t }: PluginContext): PluginObj<PluginState> {
             { local: "$createComponent", imported: "createComponent" },
             { local: "$style", imported: "style" },
             { local: "$spread", imported: "spread" },
-            { local: "$toSignal", imported: "toSignal" },
             { local: "$effect", imported: "effect" },
+            { local: "$computed", imported: "computed" },
           ];
 
           for (const helper of helpers) {
@@ -1093,7 +1060,6 @@ export function j2d({ types: t }: PluginContext): PluginObj<PluginState> {
       ClassMethod(path: NodePath<BabelTypes.ClassMethod>) {
         if (path.getData("processed")) return;
 
-        // Check if method contains JSX
         let hasJSX = false;
         path.traverse({
           JSXElement() {
@@ -1110,54 +1076,13 @@ export function j2d({ types: t }: PluginContext): PluginObj<PluginState> {
         const body = path.node.body;
         if (!t.isBlockStatement(body)) return;
 
-        const observables = new Map<string, BabelTypes.Expression>();
-        path.traverse({
-          JSXElement(jsxPath: NodePath<BabelTypes.JSXElement>) {
-            observableManager.collectObservables(
-              jsxPath.node,
-              observables,
-              astUtils,
-            );
-          },
-          JSXFragment(jsxPath: NodePath<BabelTypes.JSXFragment>) {
-            observableManager.collectObservables(
-              jsxPath.node,
-              observables,
-              astUtils,
-            );
-          },
-        });
-
         body.body.unshift(
           t.variableDeclaration("const", [
             t.variableDeclarator(t.identifier("self"), t.thisExpression()),
           ]),
         );
 
-        const observableSignals = new Map<string, BabelTypes.Identifier>();
-        const signalDeclarations: BabelTypes.Statement[] = [];
-
-        for (const [key, observable] of observables) {
-          const signalId = path.scope.generateUidIdentifier("sig");
-          observableSignals.set(key, signalId);
-          signalDeclarations.push(
-            t.variableDeclaration("const", [
-              t.variableDeclarator(
-                signalId,
-                t.callExpression(t.identifier("$toSignal"), [
-                  observable,
-                  t.identifier("self"),
-                ]),
-              ),
-            ]),
-          );
-        }
-
-        if (signalDeclarations.length > 0) {
-          astUtils.insertBeforeReturn(body.body, signalDeclarations);
-        }
-
-        const context: TransformContext = { observables, observableSignals };
+        const context: TransformContext = { signals: new Map() };
 
         path.traverse({
           JSXElement(jsxPath: NodePath<BabelTypes.JSXElement>) {

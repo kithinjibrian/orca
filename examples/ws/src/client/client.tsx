@@ -9,7 +9,7 @@ import {
 } from "@kithinji/orca";
 
 @Component({
-  deps: [RouterOutlet],
+  inject: [RouterOutlet],
 })
 class AppComponent {
   build() {

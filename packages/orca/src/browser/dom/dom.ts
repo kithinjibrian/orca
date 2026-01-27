@@ -167,7 +167,7 @@ export function createComponent(
 
   let instance: OrcaComponent;
   try {
-    instance = injector.resolve(ComponentClass);
+    instance = injector.resolveSync(ComponentClass);
   } catch (e: any) {
     console.log(e);
 

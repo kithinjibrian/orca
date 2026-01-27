@@ -6,7 +6,7 @@ import { MenuItem } from "./menu-item";
 import { ContentService } from "../content.service";
 
 @Component({
-  deps: [MenuItem],
+  inject: [MenuItem],
 })
 export class AppSidebar {
   props!: {

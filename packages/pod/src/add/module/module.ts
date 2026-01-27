@@ -66,7 +66,7 @@ function updateFeaturesIndex(featureName: string) {
     process.cwd(),
     "src",
     "features",
-    "index.ts"
+    "index.ts",
   );
 
   const moduleName = toPascalCase(featureName + "_" + "Module");
@@ -78,7 +78,7 @@ function updateFeaturesIndex(featureName: string) {
       "index.ts",
       content,
       ts.ScriptTarget.Latest,
-      true
+      true,
     );
 
     const hasExport = sourceFile.statements.some((statement) => {
@@ -92,7 +92,7 @@ function updateFeaturesIndex(featureName: string) {
           ts.isNamedExports(statement.exportClause)
         ) {
           return statement.exportClause.elements.some(
-            (element) => element.name.text === moduleName
+            (element) => element.name.text === moduleName,
           );
         }
       }
@@ -130,7 +130,7 @@ function updateAppModule(featureName: string) {
     "app.module.ts",
     content,
     ts.ScriptTarget.Latest,
-    true
+    true,
   );
 
   const hasImport = sourceFile.statements.some((statement) => {
@@ -146,7 +146,7 @@ function updateAppModule(featureName: string) {
         ts.isNamedImports(statement.importClause.namedBindings)
       ) {
         return statement.importClause.namedBindings.elements.some(
-          (element) => element.name.text === moduleName
+          (element) => element.name.text === moduleName,
         );
       }
     }
@@ -177,7 +177,7 @@ function updateAppModule(featureName: string) {
     "app.module.ts",
     content,
     ts.ScriptTarget.Latest,
-    true
+    true,
   );
 
   content = addToModuleImportsArray(content, newSourceFile, moduleName);
@@ -188,7 +188,7 @@ function updateAppModule(featureName: string) {
 function addToModuleImportsArray(
   content: string,
   sourceFile: ts.SourceFile,
-  moduleName: string
+  moduleName: string,
 ): string {
   let decoratorNode: ts.Decorator | undefined;
 
@@ -426,7 +426,7 @@ export class ${serviceName} {
     private items: any[] = [];
 
     @Signature(${toCamelCase(name + "_" + "CreateInput")}, ${toCamelCase(
-    name + "_" + "CreateOutput"
+    name + "_" + "CreateOutput",
   )})
     public async create(input: any) {
         const item = {
@@ -439,7 +439,7 @@ export class ${serviceName} {
     }
 
     @Signature(${toCamelCase(name + "_" + "GetInput")}, ${toCamelCase(
-    name + "_" + "GetOutput"
+    name + "_" + "GetOutput",
   )})
     public async get(input: any) {
         const item = this.items.find((i) => i.id === input.id);
@@ -455,7 +455,7 @@ export class ${serviceName} {
     }
 
     @Signature(${toCamelCase(name + "_" + "UpdateInput")}, ${toCamelCase(
-    name + "_" + "UpdateOutput"
+    name + "_" + "UpdateOutput",
   )})
     public async update(input: any) {
         const index = this.items.findIndex((i) => i.id === input.id);
@@ -473,7 +473,7 @@ export class ${serviceName} {
     }
 
     @Signature(${toCamelCase(name + "_" + "DeleteInput")}, ${toCamelCase(
-    name + "_" + "DeleteOutput"
+    name + "_" + "DeleteOutput",
   )})
     public async delete(input: any) {
         const index = this.items.findIndex((i) => i.id === input.id);
@@ -496,7 +496,7 @@ function createPage(name: string) {
 import { ${listComponent} } from "./components/${name}-list.component";
 
 @Component({
-  deps: [${listComponent}]
+  inject: [${listComponent}]
 })
 export class ${pageName} {
     build() {

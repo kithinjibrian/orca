@@ -105,7 +105,7 @@ import { Button } from "./button.component";
 import { Card } from "./card.component";
 
 @Component({
-  deps: [Button, Card],
+  inject: [Button, Card],
 })
 export class Dashboard {
   build() {
@@ -431,7 +431,7 @@ Limit them to state and events. Push data and layout upward.
 
 ```tsx
 @Component({
-  deps: [Button, Card, Icon],
+  inject: [Button, Card, Icon],
 })
 export class Dashboard {
   build() {

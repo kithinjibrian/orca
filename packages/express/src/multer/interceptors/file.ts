@@ -2,12 +2,12 @@ import {
   CallHandler,
   Constructor,
   ExecutionContext,
-  Observable,
   OrcaInterceptor,
   mixin,
 } from "@kithinji/orca";
 import multer from "multer";
 import { MulterOptions } from "../types/options";
+import { Observable } from "rxjs";
 
 type MulterInstance = any;
 
@@ -38,6 +38,7 @@ export function FileInterceptor(
             if (err) {
               return reject(err);
             }
+
             resolve();
           },
         ),

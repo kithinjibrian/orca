@@ -6,7 +6,7 @@ import { AppService } from "./app.service";
 import { AppHeader, AppRightbar, AppSidebar, MainArea } from "./components";
 
 @Component({
-  deps: [AppHeader, AppSidebar, AppRightbar, MainArea],
+  inject: [AppHeader, AppSidebar, AppRightbar, MainArea],
 })
 export class AppPage {
   sidebar: Signal<boolean> = signal(false);

@@ -1,11 +1,16 @@
 import { Request, Response } from "express";
-import { Observable } from "./observable";
+import { Observable } from "rxjs";
 
 export type Constructor<T = any> = new (...args: any[]) => T;
 
-export type Token<T> = Constructor<T> | string | symbol;
-
 export type Scope = "singleton" | "transient";
+
+export type Token<T = any> = Constructor<T> | string | symbol | Function;
+
+export type OptionalFactoryDependency = {
+  token: Token;
+  optional: boolean;
+};
 
 export interface Provider<T = any> {
   provide: Token<T>;
@@ -14,7 +19,7 @@ export interface Provider<T = any> {
   useFactory?: (...args: any[]) => T;
   scope?: Scope;
   useExisting?: Token<T>;
-  deps?: Token<any>[];
+  inject?: (Token | OptionalFactoryDependency)[];
   eager?: boolean;
 }
 
@@ -25,6 +30,7 @@ export interface DynamicModule {
   declarations?: Constructor[];
   imports?: IModule[];
   exports?: Token<any>[];
+  __uniqueId?: string;
 }
 
 export type IModule = Constructor | DynamicModule;
@@ -40,7 +46,7 @@ export interface ModuleParams {
 
 export interface ComponentParams {
   providers?: (Provider | Constructor)[];
-  deps?: Constructor[];
+  inject?: Constructor[];
   route?: string;
 }
 
@@ -60,6 +66,8 @@ export enum HandlerParamType {
   HEADERS = "HEADERS",
   REQUEST = "REQUEST",
   RESPONSE = "RESPONSE",
+  FILE = "FILE",
+  FILES = "FILES",
 }
 
 export enum HttpMethod {
@@ -110,7 +118,6 @@ export type MessageHandler = (data: any) => void | Promise<void>;
 export interface ExecutionContext {
   getClass(): Constructor;
   getHandler(): Function;
-  getArgs(): any[];
   switchToHttp(): HttpContext;
 }
 
@@ -127,7 +134,7 @@ export interface CanActivate {
 }
 
 export interface CallHandler<T = any> {
-  handle(): Observable<T>;
+  handle(): Promise<Observable<T>>;
 }
 
 export interface OrcaInterceptor<T = any, R = any> {
@@ -136,3 +143,14 @@ export interface OrcaInterceptor<T = any, R = any> {
     next: CallHandler<T>,
   ): Observable<R> | Promise<Observable<R>>;
 }
+
+export interface RequestContext {
+  request: Request;
+  response: Response;
+  metadata?: Record<string, any>;
+}
+
+export type CustomDecorator<TKey = string> = MethodDecorator &
+  ClassDecorator & {
+    KEY: TKey;
+  };

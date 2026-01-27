@@ -13,10 +13,11 @@
     "esbuild": "^0.27.2",
     "typescript": "^5.9.3"
   },
-  "main": "dist/index.mjs",
+  "main": "./dist/index.mjs",
   "types": "./dist/types/index.d.ts",
   "dependencies": {
     "@kithinji/orca": "workspace:*",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "rxjs": "^7.8.2"
   }
 }

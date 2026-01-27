@@ -6,7 +6,7 @@ import { ContentService } from "../content.service";
 import { MenuItemData } from "../app.service";
 
 @Component({
-  deps: [MenuItem],
+  inject: [MenuItem],
 })
 export class MenuItem {
   props!: {

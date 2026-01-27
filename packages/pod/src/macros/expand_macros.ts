@@ -227,6 +227,7 @@ function isNpmPackage(importPath: string): boolean {
   return (
     !importPath.startsWith(".") &&
     !importPath.startsWith("/") &&
+    !importPath.startsWith("@/") &&
     !path.isAbsolute(importPath)
   );
 }
@@ -280,12 +281,12 @@ export function extractValueFromNode(node: ts.Node): any | undefined {
         const key = ts.isIdentifier(prop.name)
           ? prop.name.text
           : ts.isStringLiteral(prop.name)
-            ? prop.name.text
-            : ts.isNumericLiteral(prop.name)
-              ? prop.name.text
-              : ts.isComputedPropertyName(prop.name)
-                ? extractValueFromNode(prop.name.expression)
-                : undefined;
+          ? prop.name.text
+          : ts.isNumericLiteral(prop.name)
+          ? prop.name.text
+          : ts.isComputedPropertyName(prop.name)
+          ? extractValueFromNode(prop.name.expression)
+          : undefined;
 
         if (key !== undefined) {
           obj[key] = extractValueFromNode(prop.initializer);

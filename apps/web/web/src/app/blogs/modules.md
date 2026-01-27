@@ -203,7 +203,7 @@ export class AppModule {}
 
 // app.component.tsx
 @Component({
-  deps: [PostList, CommentList], // Can use exported components
+  inject: [PostList, CommentList], // Can use exported components
 })
 export class AppComponent {
   constructor(private posts: PostService) {} // Can inject exported service

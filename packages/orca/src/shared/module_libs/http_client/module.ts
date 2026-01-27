@@ -1,4 +1,5 @@
-import { Injectable, Module, Observable } from "@/shared";
+import { Injectable, Module } from "@/shared";
+import { Observable } from "rxjs";
 
 type StreamMode = "json" | "text" | "ndjson" | "raw";
 

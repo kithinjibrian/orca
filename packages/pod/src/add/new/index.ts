@@ -61,6 +61,7 @@ function genPackageJson(name: string) {
       zod: "^4.2.1",
       "@kithinji/orca": "latest",
       "@kithinji/arcane": "latest",
+      rxjs: "latest",
     },
     devDependencies: {
       "@types/node": "^20.19.27",
@@ -85,6 +86,7 @@ function gentsconfig() {
       jsxImportSource: "@kithinji/orca",
       experimentalDecorators: true,
       emitDecoratorMetadata: true,
+      strictPropertyInitialization: false,
       baseUrl: ".",
       paths: {
         "@/*": ["src/*"],
@@ -160,7 +162,7 @@ import {
 } from "@kithinji/orca";
 
 @Component({
-  deps: [RouterOutlet],
+  inject: [RouterOutlet],
 })
 class AppComponent {
   build() {
@@ -175,8 +177,8 @@ class AppComponent {
 })
 class AppModule {}
 
-export function bootstrap() {
-  BrowserFactory.create(AppModule, document.getElementById("root")!);
+export async function bootstrap() {
+  await BrowserFactory.create(AppModule, document.getElementById("root")!);
 }
 
 bootstrap();

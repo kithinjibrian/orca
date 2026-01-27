@@ -57,14 +57,14 @@ class InjectorConfigurationService {
 
   public static instantiateEagerProviders(
     appNode: any,
-    injector: Injector
+    injector: Injector,
   ): void {
     appNode.traverse((node: any) => {
       const providers = [...node.getProviders().values()];
 
       providers
         .filter((provider) => provider.eager)
-        .forEach((p) => injector.resolve(p.provide));
+        .forEach(async (p) => await injector.resolve(p.provide));
     });
   }
 }
@@ -75,19 +75,19 @@ class BootstrapService {
 
     if (!bootstrap) {
       throw new Error(
-        `No bootstrap component found. Ensure the root module has a @Bootstrap() decorator.`
+        `No bootstrap component found. Ensure the root module has a @Bootstrap() decorator.`,
       );
     }
 
     return bootstrap;
   }
 
-  public static renderBootstrap(
+  public static async renderBootstrap(
     bootstrap: Constructor,
     injector: Injector,
-    rootElement: HTMLElement
-  ): void {
-    const instance = injector.resolve<BootstrapInstance>(bootstrap);
+    rootElement: HTMLElement,
+  ): Promise<void> {
+    const instance = await injector.resolve<BootstrapInstance>(bootstrap);
 
     instance.__injector = injector;
 
@@ -104,10 +104,10 @@ export class BrowserFactory {
    * @param rootElement - The DOM element to mount the application to
    * @throws {Error} If validation fails or bootstrap component is not found
    */
-  public static create(
+  public static async create(
     rootModule: Constructor,
-    rootElement: HTMLElement
-  ): void {
+    rootElement: HTMLElement,
+  ): Promise<void> {
     const compilationService = new CompilationService();
     const appNode = compilationService.compileAndValidate(rootModule);
 
@@ -117,10 +117,14 @@ export class BrowserFactory {
 
     InjectorConfigurationService.instantiateEagerProviders(
       appNode,
-      rootInjector
+      rootInjector,
     );
 
     const bootstrap = BootstrapService.getBootstrapComponent(rootModule);
-    BootstrapService.renderBootstrap(bootstrap, rootInjector, rootElement);
+    await BootstrapService.renderBootstrap(
+      bootstrap,
+      rootInjector,
+      rootElement,
+    );
   }
 }

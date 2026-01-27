@@ -24,6 +24,7 @@ export const SSE_ROUTE = Symbol("orca:sse:route");
 export const EVENT_HANDLER = Symbol("orca:event:handler");
 export const INTERCEPTORS_KEY = Symbol("interceptors");
 export const GUARDS_KEY = Symbol("guards");
+export const REQUEST_CONTEXT = Symbol("orca:request");
 
 // over the wire symbols
 export const ERROR_ELEMENT = Symbol.for("orca:error");

@@ -1,0 +1,20 @@
+{
+  "name": "@kithinji/typeorm",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js --watch",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@kithinji/orca": "workspace:*",
+    "@types/node": "^25.0.3",
+    "esbuild": "^0.27.2",
+    "rxjs": "^7.8.2",
+    "typeorm": "^0.3.28",
+    "typescript": "^5.9.3"
+  },
+  "main": "dist/index.mjs",
+  "types": "./dist/types/index.d.ts"
+}
