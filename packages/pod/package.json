@@ -1,6 +1,6 @@
 {
   "name": "@kithinji/pod",
-  "version": "1.0.47",
+  "version": "1.0.48",
   "description": "A CLI tool for managing and deploying pods",
   "type": "module",
   "bin": {
