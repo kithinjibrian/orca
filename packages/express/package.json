@@ -1,6 +1,6 @@
 {
   "name": "@kithinji/express",
-  "version": "1.0.5",
+  "version": "1.0.7",
   "type": "module",
   "scripts": {
     "build": "node build.js",
@@ -19,5 +19,10 @@
     "@kithinji/orca": "workspace:*",
     "multer": "^2.0.2",
     "rxjs": "^7.8.2"
-  }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ]
 }

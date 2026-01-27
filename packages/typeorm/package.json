@@ -1,6 +1,6 @@
 {
   "name": "@kithinji/typeorm",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "scripts": {
     "build": "node build.js",
@@ -16,5 +16,10 @@
     "typescript": "^5.9.3"
   },
   "main": "dist/index.mjs",
-  "types": "./dist/types/index.d.ts"
+  "types": "./dist/types/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ]
 }
