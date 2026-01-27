@@ -15,40 +15,48 @@ export function env$(key: string, context?: MacroContext): string {
   const resolvedKey = context.resolveNodeValue(keyNode);
 
   if (typeof resolvedKey !== "string") {
-    context.error("env$ key must be a string literal");
+    throw new Error("env$ key must be a string literal");
   }
 
   const sourceDir = path.dirname(context.sourceFile.fileName);
-
   let envPath = envFileCache.get(sourceDir);
 
   if (!envPath) {
     envPath = findEnvFile(sourceDir) ?? undefined;
-
-    if (!envPath) {
-      throw new Error(
-        `.env file not found (searched from ${context.sourceFile.fileName})`,
-      );
+    if (envPath) {
+      envFileCache.set(sourceDir, envPath);
     }
-
-    envFileCache.set(sourceDir, envPath);
   }
 
-  let envVars = envVarsCache.get(envPath);
+  let envVars: Record<string, string> = {};
 
-  if (!envVars) {
-    const envContent = fs.readFileSync(envPath, "utf-8");
-    envVars = parseEnvFile(envContent);
-    envVarsCache.set(envPath, envVars);
+  if (envPath) {
+    let cached = envVarsCache.get(envPath);
+    if (!cached) {
+      const envContent = fs.readFileSync(envPath, "utf-8");
+      cached = parseEnvFile(envContent);
+      envVarsCache.set(envPath, cached);
+    }
+    envVars = cached;
   }
 
-  if (!(resolvedKey in envVars)) {
-    context.error(
-      `Environment variable "${resolvedKey}" not found in ${envPath}`,
+  let value: string | undefined;
+
+  if (resolvedKey in envVars) {
+    value = envVars[resolvedKey];
+  } else if (resolvedKey in process.env) {
+    value = process.env[resolvedKey];
+  }
+
+  if (value === undefined) {
+    throw new Error(
+      `Environment variable "${resolvedKey}" not found in ${
+        envPath ? `${envPath} or ` : ""
+      }process.env`,
     );
   }
 
-  return context.factory.createStringLiteral(envVars[resolvedKey]) as any;
+  return context.factory.createStringLiteral(value) as any;
 }
 
 function findEnvFile(startDir: string): string | null {
