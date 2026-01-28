@@ -58,7 +58,8 @@ export class Navigate {
         },
       ]);
 
-      history.replaceState({ cursor: 0 }, "", initialPath);
+      //   history.replaceState({ cursor: 0 }, "", initialPath);
+
       this.saveToStorage();
     }
 
