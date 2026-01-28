@@ -32,7 +32,7 @@ import { compileFiles } from "./compile";
 
 const program = new Command();
 
-program.name("pod").description("Pod cli tool").version("1.0.46");
+program.name("pod").description("Pod cli tool").version("1.0.48");
 
 program
   .command("new <name> [type]")
@@ -95,6 +95,13 @@ program
   .description("Start Pod build")
   .action(async (opts) => {
     await startBuild();
+  });
+
+program
+  .command("start")
+  .description("Start Pod build")
+  .action(async (opts) => {
+    await startBuild(true);
   });
 
 program

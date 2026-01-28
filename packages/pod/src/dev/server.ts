@@ -2,7 +2,6 @@ import * as esbuild from "esbuild";
 import { spawn, ChildProcess } from "child_process";
 import * as fs from "fs/promises";
 import { WebSocketServer, WebSocket } from "ws";
-import * as path from "path";
 import { loadConfig, mergeConfig, getDefaultConfig } from "../config/config";
 import { buildGraph, useMyPlugin } from "@/plugins";
 import { Store } from "@/store";
@@ -513,7 +512,7 @@ export async function startDevServer(): Promise<void> {
   await serverCtx.watch();
 }
 
-export async function startBuild(): Promise<void> {
+export async function startBuild(start: boolean = false): Promise<void> {
   const logger = createLogger(false);
   const store = Store.getInstance();
 
@@ -589,6 +588,36 @@ export async function startBuild(): Promise<void> {
 
     logger.info("Production build completed successfully!");
     logger.info(`Output: dist/${hasClientFiles ? " and public/" : ""}`);
+
+    if (start) {
+      logger.info("Starting production server...");
+      const serverProcess = spawn("node", ["dist/main.js"], {
+        stdio: "inherit",
+      });
+
+      serverProcess.on("error", (err) => {
+        logger.error("Server process error:", err);
+        process.exit(1);
+      });
+
+      serverProcess.on("exit", (code) => {
+        if (code !== null && code !== 0) {
+          logger.error(`Server process exited with code ${code}`);
+          process.exit(code);
+        }
+      });
+
+      const shutdown = async () => {
+        logger.info("Shutting down production server...");
+        await waitForProcessExit(serverProcess);
+        process.exit(0);
+      };
+
+      process.on("SIGINT", shutdown);
+      process.on("SIGTERM", shutdown);
+
+      logger.info("Production server started successfully!");
+    }
   } catch (error) {
     logger.error("Build failed:", error);
     process.exit(1);
