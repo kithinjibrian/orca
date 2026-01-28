@@ -32,7 +32,7 @@ import { compileFiles } from "./compile";
 
 const program = new Command();
 
-program.name("pod").description("Pod cli tool").version("1.0.48");
+program.name("pod").description("Pod cli tool").version("1.0.49");
 
 program
   .command("new <name> [type]")
